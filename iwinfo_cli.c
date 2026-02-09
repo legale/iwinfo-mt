@@ -18,6 +18,7 @@
 
 #include <glob.h>
 #include <stdio.h>
+#include <stdbool.h>
 
 #include "iwinfo-mt.h"
 
@@ -787,8 +788,133 @@ static void print_assoclist(iwinfo_t *iw, const char *ifname) {
            format_assocrate(&e->tx_rate),
            e->tx_packets);
 
-    printf("	expected throughput: %s\n\n",
+    printf("	expected throughput: %s\n",
            format_rate(e->thr));
+
+    if (e->tx_duration)
+        printf("    TX Duration: %lu us\n", (unsigned long)e->tx_duration);
+    if (e->rx_duration)
+        printf("    RX Duration: %lu us\n", (unsigned long)e->rx_duration);
+    if (e->airtime_weight)
+        printf("    Airtime Weight: %u\n", e->airtime_weight);
+
+    printf("\n");
+  }
+}
+
+static void print_station_dump(iwinfo_t *iw, const char *ifname, const char *mac) {
+  struct iwinfo_assoclist_entry e;
+  uint8_t mac_bin[6];
+
+  if (sscanf(mac, "%hhx:%hhx:%hhx:%hhx:%hhx:%hhx",
+             &mac_bin[0], &mac_bin[1], &mac_bin[2],
+             &mac_bin[3], &mac_bin[4], &mac_bin[5]) != 6) {
+    printf("Invalid MAC address\n");
+    return;
+  }
+
+  if (!iw->iw->station_dump || iw->iw->station_dump(iw, ifname, mac_bin, &e)) {
+    printf("No station information available\n");
+    return;
+  }
+
+  printf("%s  %s / %s (SNR %d)  %d ms ago\n",
+         format_bssid(e.mac),
+         format_signal(e.signal),
+         format_noise(e.noise),
+         (e.signal - e.noise),
+         e.inactive);
+
+  printf("	RX: %-38s  %8d Pkts.\n",
+         format_assocrate(&e.rx_rate),
+         e.rx_packets);
+
+  printf("	TX: %-38s  %8d Pkts.\n",
+         format_assocrate(&e.tx_rate),
+         e.tx_packets);
+
+  printf("	expected throughput: %s\n",
+         format_rate(e.thr));
+
+  if (e.tx_duration)
+      printf("    TX Duration: %lu us\n", (unsigned long)e.tx_duration);
+  if (e.rx_duration)
+      printf("    RX Duration: %lu us\n", (unsigned long)e.rx_duration);
+  if (e.airtime_weight)
+      printf("    Airtime Weight: %u\n", e.airtime_weight);
+}
+
+static void print_airtime_survey(iwinfo_t *iw, const char *ifname) {
+  struct iwinfo_airtime_entry e;
+
+  if (!iw->iw->airtime_survey || iw->iw->airtime_survey(iw, ifname, &e)) {
+    printf("No airtime survey information available\n");
+    return;
+  }
+
+  printf("Airtime Survey:\n");
+  printf("  Active: %u%%\n", e.active);
+  printf("  Busy:   %u%%\n", e.busy);
+  printf("  TX:     %u%%\n", e.tx);
+  printf("  RX:     %u%%\n", e.rx);
+  printf("  Other:  %u%%\n", e.other);
+  printf("  Interf: %u%%\n", e.interference);
+  printf("  Noise:  %s\n", format_noise(e.noise));
+}
+
+static void print_airtime_station(iwinfo_t *iw, const char *ifname, const char *mac) {
+  int i, len;
+  char buf[IWINFO_BUFSIZE];
+  struct iwinfo_airtime_entry *e;
+  uint8_t mac_bin[6] = {0};
+
+  if (!iw->iw->airtime_station) {
+      printf("Function not supported\n");
+      return;
+  }
+
+  len = IWINFO_BUFSIZE;
+
+  if (mac) {
+      if (sscanf(mac, "%hhx:%hhx:%hhx:%hhx:%hhx:%hhx",
+                 &mac_bin[0], &mac_bin[1], &mac_bin[2],
+                 &mac_bin[3], &mac_bin[4], &mac_bin[5]) != 6) {
+          printf("Invalid MAC address\n");
+          return;
+      }
+      
+      if (iw->iw->airtime_station(iw, ifname, mac_bin, buf, &len)) {
+          printf("No airtime station information available\n");
+          return;
+      }
+  } else {
+      if (iw->iw->airtime_station(iw, ifname, NULL, buf, &len)) {
+          printf("No airtime station information available\n");
+          return;
+      }
+  }
+
+  if (len <= 0) {
+      printf("No stations found\n");
+      return;
+  }
+
+  for (i = 0; i < len; i += sizeof(struct iwinfo_airtime_entry)) {
+      e = (struct iwinfo_airtime_entry *)&buf[i];
+      printf("Station %s Airtime:\n", format_bssid(e->mac));
+      printf("  Active: %u%%\n", e->active);
+      printf("  Busy:   %u%%\n", e->busy);
+      printf("  TX:     %u%%\n", e->tx);
+      printf("  RX:     %u%%\n", e->rx);
+      printf("  Other:  %u%%\n", e->other);
+      printf("  Interf: %u%%\n", e->interference);
+      printf("  Signal: %s / %s (SNR %d)\n",
+             format_signal(e->signal),
+             format_noise(e->noise),
+             (e->signal - e->noise));
+      printf("  RX Rate: %s\n", format_assocrate(&e->rx_rate));
+      printf("  TX Rate: %s\n", format_assocrate(&e->tx_rate));
+      printf("\n");
   }
 }
 
@@ -870,9 +996,70 @@ static void lookup_path(iwinfo_t *iw, const char *phy) {
   printf("%s\n", path);
 }
 
+/* cli arguments parse macro and functions */
+#define NEXT_ARG()                                                             \
+  do {                                                                         \
+    argv++;                                                                    \
+    if (--argc <= 0)                                                           \
+      incomplete_command();                                                    \
+  } while (0)
+#define NEXT_ARG_OK() (argc - 1 > 0)
+#define PREV_ARG()                                                             \
+  do {                                                                         \
+    argv--;                                                                    \
+    argc++;                                                                    \
+  } while (0)
+
+/**
+ * @brief print message and exit with code -1
+ *
+ */
+static void incomplete_command(void) {
+  fprintf(stdout, "Command line is not complete. Try -h or --help\n");
+  exit(-1);
+}
+
+/**
+ * @brief check if 'prefix' matches string
+ *
+ * @param prefix
+ * @param string
+ * @return true if 'prefix' is a not empty prefix of 'string'
+ * @return false
+ */
+static bool matches(const char *prefix, const char *string) {
+  if (!*prefix)
+    return false;
+  while (*string && *prefix == *string) {
+    prefix++;
+    string++;
+  }
+  return !*prefix;
+}
+
+static void usage(const char *argv0) {
+  fprintf(stderr,
+          "Usage:\n"
+          "	%s <device> info\n"
+          "	%s <device> scan\n"
+          "	%s <device> scan2 <freq> <duration> <duration_mandatory>\n"
+          "	%s <device> txpowerlist\n"
+          "	%s <device> freqlist\n"
+          "	%s <device> assoclist\n"
+          "	%s <device> countrylist\n"
+          "	%s <device> htmodelist\n"
+          "	%s <device> station_dump <mac>\n"
+          "	%s <device> airtime_survey\n"
+          "	%s <device> airtime_station [mac]\n"
+          "	%s <backend> phyname <section>\n"
+          "	%s <backend> path <phy>\n",
+          argv0, argv0, argv0, argv0, argv0, argv0, argv0, argv0, argv0, argv0, argv0, argv0, argv0);
+  exit(1);
+}
+
 int main(int argc, char **argv) {
   int i, rv = 0;
-  char *p;
+  char *p, *argv0;
   iwinfo_t *iw = iwinfo_init();
   if(iw == NULL){
     fprintf(stderr, "failed iwinfo_init\n");
@@ -880,21 +1067,7 @@ int main(int argc, char **argv) {
   }
   glob_t globbuf;
 
-  if (argc > 1 && argc < 3) {
-    fprintf(stderr,
-            "Usage:\n"
-            "	iwinfo <device> info\n"
-            "	iwinfo <device> scan\n"
-            "	iwinfo <device> scan2 <freq> <duration> <duration_mandatory>\n"
-            "	iwinfo <device> txpowerlist\n"
-            "	iwinfo <device> freqlist\n"
-            "	iwinfo <device> assoclist\n"
-            "	iwinfo <device> countrylist\n"
-            "	iwinfo <device> htmodelist\n"
-            "	iwinfo <backend> phyname <section>\n");
-
-    return 1;
-  }
+  argv0 = *argv;
 
   if (argc == 1) {
     glob("/sys/class/net/*", 0, NULL, &globbuf);
@@ -914,84 +1087,86 @@ int main(int argc, char **argv) {
     return 0;
   }
 
-  if (argc > 3) {
+  /* First argument must be interface or backend or help */
+  char *ifname = argv[1];
+  if (matches(ifname, "-h") || matches(ifname, "--help")) {
+    usage(argv0);
+  }
 
-    if (!iw->iw->probe(iw, argv[1])) {
-      fprintf(stderr, "failed to init wireless backend: %s\n", argv[1]);
-      rv = 1;
-    } else {
-      if (!strcmp(argv[2], "path")) {
-        lookup_path(iw, argv[3]);
-        return 0;
+  if (!iw->iw->probe(iw, ifname)) {
+    fprintf(stderr, "No such wireless device or backend: %s\n", ifname);
+    iwinfo_deinit(iw);
+    return 1;
+  }
+
+  /* Consume the ifname argument */
+  NEXT_ARG();
+
+  while (argc > 1) {
+    NEXT_ARG();
+
+    if (matches(*argv, "info")) {
+      print_info(iw, ifname);
+    } else if (matches(*argv, "scan")) {
+      print_scanlist(iw, ifname);
+    } else if (matches(*argv, "scan2")) {
+      int freq = 0, duration = 0, duration_mandatory = 0;
+      if (NEXT_ARG_OK()) { NEXT_ARG(); freq = atoi(*argv); }
+      if (NEXT_ARG_OK()) { NEXT_ARG(); duration = atoi(*argv); }
+      if (NEXT_ARG_OK()) { NEXT_ARG(); duration_mandatory = atoi(*argv); }
+      print_scan2(iw, ifname, duration, freq, duration_mandatory);
+    } else if (matches(*argv, "txpowerlist")) {
+      print_txpwrlist(iw, ifname);
+    } else if (matches(*argv, "freqlist")) {
+      print_freqlist(iw, ifname);
+    } else if (matches(*argv, "assoclist")) {
+      print_assoclist(iw, ifname);
+    } else if (matches(*argv, "countrylist")) {
+      print_countrylist(iw, ifname);
+    } else if (matches(*argv, "htmodelist")) {
+      print_htmodelist(iw, ifname);
+    } else if (matches(*argv, "station_dump")) {
+      if (NEXT_ARG_OK()) {
+        NEXT_ARG();
+        print_station_dump(iw, ifname, *argv);
+      } else {
+        incomplete_command();
       }
-      if (!strcmp(argv[2], "scan2")) {
-        if (argc != 6) {
-          fprintf(stderr, "Usage: iwinfo <device> scan2 <freq> <duration> <duration_mandatory>\n");
-          rv = 1;
+    } else if (matches(*argv, "airtime_survey")) {
+      print_airtime_survey(iw, ifname);
+    } else if (matches(*argv, "airtime_station")) {
+      const char *mac = NULL;
+      if (NEXT_ARG_OK()) {
+        /* Check if next arg is a MAC or another command */
+        argv++;
+        if (argc > 1 && strchr(*argv, ':')) {
+            mac = *argv;
+            argc--;
         } else {
-          int freq = atoi(argv[3]);
-          int duration = atoi(argv[4]);
-          int duration_mandatory = atoi(argv[5]);
-          print_scan2(iw, argv[1], duration, freq, duration_mandatory);
+            /* Not a MAC, put it back */
+            argv--;
         }
-        return rv;
       }
-      switch (argv[2][0]) {
-      case 'p':
-        lookup_phy(iw, argv[3]);
-        break;
-
-      default:
-        fprintf(stderr, "Unknown command: %s\n", argv[2]);
-        rv = 1;
+      print_airtime_station(iw, ifname, mac);
+    } else if (matches(*argv, "phyname")) {
+      if (NEXT_ARG_OK()) {
+        NEXT_ARG();
+        lookup_phy(iw, *argv);
+      } else {
+        incomplete_command();
       }
-    }
-  } else {
-
-
-    if (!iw->iw->probe(iw, argv[1])) {
-      fprintf(stderr, "No such wireless device: %s\n", argv[1]);
-      rv = 1;
+    } else if (matches(*argv, "path")) {
+      if (NEXT_ARG_OK()) {
+        NEXT_ARG();
+        lookup_path(iw, *argv);
+      } else {
+        incomplete_command();
+      }
     } else {
-      for (i = 2; i < argc; i++) {
-        switch (argv[i][0]) {
-        case 'i':
-          print_info(iw, argv[1]);
-          break;
-
-        case 's':
-          print_scanlist(iw, argv[1]);
-          break;
-
-        case 't':
-          print_txpwrlist(iw, argv[1]);
-          break;
-
-        case 'f':
-          print_freqlist(iw, argv[1]);
-          break;
-
-        case 'a':
-          print_assoclist(iw, argv[1]);
-          break;
-
-        case 'c':
-          print_countrylist(iw, argv[1]);
-          break;
-
-        case 'h':
-          print_htmodelist(iw, argv[1]);
-          break;
-
-        default:
-          fprintf(stderr, "Unknown command: %s\n", argv[i]);
-          rv = 1;
-        }
-      }
+      usage(argv0);
     }
   }
 
   iwinfo_deinit(iw);
-
   return rv;
 }

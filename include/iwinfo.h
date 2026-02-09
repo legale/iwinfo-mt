@@ -249,6 +249,9 @@ struct iwinfo_assoclist_entry {
   char local_ps[16];
   char peer_ps[16];
   char nonpeer_ps[16];
+  uint64_t tx_duration;
+  uint64_t rx_duration;
+  uint32_t airtime_weight;
 };
 
 struct iwinfo_survey_entry {
@@ -258,7 +261,21 @@ struct iwinfo_survey_entry {
   uint64_t rxtime;
   uint64_t txtime;
   uint32_t mhz;
-  uint8_t noise;
+  int8_t noise;
+};
+
+struct iwinfo_airtime_entry {
+    uint8_t mac[6];
+    uint8_t active;
+    uint8_t busy;
+    uint8_t tx;
+    uint8_t rx;
+    uint8_t other;
+    uint8_t interference;
+    int8_t noise;
+    int8_t signal;
+    struct iwinfo_rate_entry rx_rate;
+    struct iwinfo_rate_entry tx_rate;
 };
 
 struct iwinfo_txpwrlist_entry {
@@ -406,6 +423,9 @@ typedef struct iwinfo_ops {
   int (*survey)(iwinfo_t *iw, const char *, char *, int *);
   int (*lookup_phy)(iwinfo_t *iw, const char *, char *);
   int (*phy_path)(iwinfo_t *iw, const char *phyname, const char **path);
+  int (*station_dump)(iwinfo_t *iw, const char *ifname, const uint8_t *mac, struct iwinfo_assoclist_entry *buf);
+  int (*airtime_survey)(iwinfo_t *iw, const char *ifname, struct iwinfo_airtime_entry *buf);
+  int (*airtime_station)(iwinfo_t *iw, const char *ifname, const uint8_t *mac, char *buf, int *len);
   void (*close)(nl80211_state_t *state);
 } iwinfo_ops_t;
 
