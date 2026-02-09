@@ -3556,12 +3556,13 @@ static int nl80211_get_airtime_survey(iwinfo_t *iw, const char *ifname, struct i
 
   if (da == 0) return -1;
 
-  uint64_t total_rx_all_sta_ms = (sta_rx1 - sta_rx0) / 1000;
+  uint64_t d_rx_all_sta_ms = (sta_rx1 - sta_rx0) / 1000;
+  uint64_t d_tx_all_sta_ms = (sta_tx1 - sta_tx0) / 1000;
 
   buf->busy = (uint8_t)((db * 100) / da);
   buf->busy_ext = (uint8_t)((dbe * 100) / da);
-  buf->tx_ap = (uint8_t)((dt * 100) / da);
-  buf->rx_ap = (uint8_t)((dr * 100) / da);
+  buf->tx_ap = (uint8_t)((d_tx_all_sta_ms * 100) / da);
+  buf->rx_ap = (uint8_t)((d_rx_all_sta_ms * 100) / da);
 
   /* Formula for interference_ext depends on bandwidth */
   nl80211_get_htmode(iw, ifname, &htmode);
@@ -3573,16 +3574,16 @@ static int nl80211_get_airtime_survey(iwinfo_t *iw, const char *ifname, struct i
 
   // 1. Помехи (не Wi-Fi)
   buf->interference = (uint8_t)((db > dt + dr) ? ((db - dt - dr) * 100) / da : 0);
-  buf->interference_ext = is_wide ? (uint8_t)((dbe > dt + dr) ? ((dbe - dt - dr) * 100) / da : 0) : 0;
+  buf->interference_ext = is_wide ? (uint8_t)((dbe > dt + d_rx_all_sta_ms) ? ((dbe - dt - d_rx_all_sta_ms) * 100) / da : 0) : 0;
 
   // 2. Чужие сети (Wi-Fi соседей)
-  if (dr > total_rx_all_sta_ms)
-      buf->other_ap = (uint8_t)(((dr - total_rx_all_sta_ms) * 100) / da);
+  if (dr > d_rx_all_sta_ms)
+      buf->other_ap = (uint8_t)(((dr - d_rx_all_sta_ms) * 100) / da);
   else
       buf->other_ap = 0;
 
   buf->tx_ext_ap = (uint8_t)(is_wide ? (dt * 100) / da : 0);
-  buf->rx_ext_ap = (uint8_t)(is_wide ? (dr * 100) / da : 0);
+  buf->rx_ext_ap = (uint8_t)(is_wide ? (d_rx_all_sta_ms * 100) / da : 0);
 
   buf->noise = s1.noise;
 
@@ -3625,7 +3626,8 @@ static int nl80211_get_airtime_station(iwinfo_t *iw, const char *ifname, const u
 
     uint64_t d_sta_tx_ms = (sta1.tx_duration - sta0.tx_duration) / 1000;
     uint64_t d_sta_rx_ms = (sta1.rx_duration - sta0.rx_duration) / 1000;
-    uint64_t total_rx_all_sta_ms = (sta_rx_all1 - sta_rx_all0) / 1000;
+    uint64_t d_rx_all_sta_ms = (sta_rx_all1 - sta_rx_all0) / 1000;
+    uint64_t d_tx_all_sta_ms = (sta_tx_all1 - sta_tx_all0) / 1000;
 
     /* Formula for interference_ext depends on bandwidth */
     nl80211_get_htmode(iw, ifname, &htmode);
@@ -3636,21 +3638,21 @@ static int nl80211_get_airtime_station(iwinfo_t *iw, const char *ifname, const u
                   htmode == IWINFO_HTMODE_HE160);
 
     e->busy = (uint8_t)((db * 100) / da);
-    e->tx_ap = (uint8_t)((dt * 100) / da);
-    e->rx_ap = (uint8_t)((dr * 100) / da);
+    e->tx_ap = (uint8_t)((d_tx_all_sta_ms * 100) / da);
+    e->rx_ap = (uint8_t)((d_rx_all_sta_ms * 100) / da);
     e->tx_sta = (uint8_t)((d_sta_tx_ms * 100) / da);
     e->rx_sta = (uint8_t)((d_sta_rx_ms * 100) / da);
 
-    e->other_ap = dr > total_rx_all_sta_ms ? (uint8_t)(((dr - total_rx_all_sta_ms) * 100) / da) : 0;
+    e->other_ap = dr > d_rx_all_sta_ms ? (uint8_t)(((dr - d_rx_all_sta_ms) * 100) / da) : 0;
     e->other_sta = dr > d_sta_rx_ms ? (uint8_t)(((dr - d_sta_rx_ms) * 100) / da) : 0;
     e->interference = (uint8_t)((db > dt + dr) ? ((db - dt - dr) * 100) / da : 0);
 
     e->busy_ext = (uint8_t)((dbe * 100) / da);
-    e->tx_ext_ap = (uint8_t)(is_wide ? (dt * 100) / da : 0);
-    e->rx_ext_ap = (uint8_t)(is_wide ? (dr * 100) / da : 0);
+    e->tx_ext_ap = (uint8_t)(is_wide ? (d_tx_all_sta_ms * 100) / da : 0);
+    e->rx_ext_ap = (uint8_t)(is_wide ? (d_rx_all_sta_ms * 100) / da : 0);
     e->interference_ext = 0;
     if (is_wide) {
-        uint64_t our_traffic = dt + dr;
+        uint64_t our_traffic = d_tx_all_sta_ms + d_rx_all_sta_ms;
         // Если вторичный канал занят дольше, чем мы передавали/принимали
         if (dbe > our_traffic) {
             e->interference_ext = (uint8_t)(((dbe - our_traffic) * 100) / da);
@@ -3660,11 +3662,16 @@ static int nl80211_get_airtime_station(iwinfo_t *iw, const char *ifname, const u
     e->tx_ext_sta = (uint8_t)(is_wide ? (d_sta_tx_ms * 100) / da : 0);
     e->rx_ext_sta = (uint8_t)(is_wide ? (d_sta_rx_ms * 100) / da : 0);
 
-    /* Add other_ext calculations */
-    int temp_other_ext_ap = e->busy_ext - e->interference_ext - e->tx_ext_ap - e->rx_ext_ap;
+    /* 1. Чистое время передачи пакетов (валидный Airtime без шума) */
+    int usage_ext = (int)e->busy_ext - (int)e->interference_ext;
+    if (usage_ext < 0) usage_ext = 0;
+
+    /* 2. Other для AP: Всё время пакетов минус трафик нашей точки доступа */
+    int temp_other_ext_ap = usage_ext - (int)e->tx_ext_ap - (int)e->rx_ext_ap;
     e->other_ext_ap = (temp_other_ext_ap > 0) ? (uint8_t)temp_other_ext_ap : 0;
 
-    int temp_other_ext_sta = e->other_ext_ap - e->tx_ext_sta - e->rx_ext_sta;
+    /* 3. Other для STA: Всё время пакетов минус трафик конкретной станции */
+    int temp_other_ext_sta = usage_ext - (int)e->tx_ext_sta - (int)e->rx_ext_sta;
     e->other_ext_sta = (temp_other_ext_sta > 0) ? (uint8_t)temp_other_ext_sta : 0;
 
     e->noise = s1.noise;
@@ -3707,7 +3714,8 @@ static int nl80211_get_airtime_station(iwinfo_t *iw, const char *ifname, const u
   if (da == 0) goto out_err;
 
   /* Calculate total RX duration for all stations */
-  uint64_t total_rx_all_sta_ms = (sta_rx_all1 - sta_rx_all0) / 1000;
+  uint64_t d_tx_all_sta_ms = (sta_tx_all1 - sta_tx_all0) / 1000;
+  uint64_t d_rx_all_sta_ms = (sta_rx_all1 - sta_rx_all0) / 1000;
 
   /* Formula for interference_ext depends on bandwidth */
   nl80211_get_htmode(iw, ifname, &htmode);
@@ -3752,13 +3760,13 @@ static int nl80211_get_airtime_station(iwinfo_t *iw, const char *ifname, const u
       e->tx_sta = (uint8_t)((d_sta_tx_ms * 100) / da);
       e->rx_sta = (uint8_t)((d_sta_rx_ms * 100) / da);
 
-      e->other_ap = dr > total_rx_all_sta_ms ? (uint8_t)(((dr - total_rx_all_sta_ms) * 100) / da) : 0;
+      e->other_ap = dr > d_rx_all_sta_ms ? (uint8_t)(((dr - d_rx_all_sta_ms) * 100) / da) : 0;
       e->other_sta = dr > d_sta_rx_ms ? (uint8_t)(((dr - d_sta_rx_ms) * 100) / da) : 0;
       e->interference = (uint8_t)((db > dt + dr) ? ((db - dt - dr) * 100) / da : 0);
 
       e->busy_ext = (uint8_t)((dbe * 100) / da);
-      e->tx_ext_ap = (uint8_t)(is_wide ? (dt * 100) / da : 0);
-      e->rx_ext_ap = (uint8_t)(is_wide ? (dr * 100) / da : 0);
+      e->tx_ext_ap = (uint8_t)(is_wide ? (d_tx_all_sta_ms * 100) / da : 0);
+      e->rx_ext_ap = (uint8_t)(is_wide ? (d_rx_all_sta_ms * 100) / da : 0);
       e->interference_ext = is_wide ? (uint8_t)((dbe > dt + dr) ? ((dbe - dt - dr) * 100) / da : 0) : 0;
 
       e->tx_ext_sta = (uint8_t)(is_wide ? (d_sta_tx_ms * 100) / da : 0);
