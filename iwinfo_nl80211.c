@@ -2128,21 +2128,35 @@ static int nl80211_get_assoclist_cb(struct nl_msg *msg, void *arg) {
   return NL_SKIP;
 }
 
-static int nl80211_get_survey(iwinfo_t *iw, const char *ifname, char *buf, int *len) {
-  if (!len || *len == 0) return EINVAL;
-  struct nl80211_array_buf arr = {
-      .buf = buf,
-      .count = 0,
-      .max_count = *len / sizeof(struct iwinfo_assoclist_entry),
-  };
-  int rc;
+static int nl80211_get_survey(iwinfo_t *iw, const char *ifname, char *buf, int *len)
+{
+  if (!len || *len == 0)
+    return EINVAL;
 
-  rc = nl80211_request(iw, ifname, NL80211_CMD_GET_SURVEY,
-                       NLM_F_DUMP, nl80211_get_survey_cb, &arr);
-  if (!rc)
-    *len = (arr.count * sizeof(struct iwinfo_survey_entry));
+  struct nl80211_array_buf arr = {
+    .buf = buf,
+    .count = 0,
+    .max_count = *len / sizeof(struct iwinfo_survey_entry),
+  };
+
+  printf("survey: request on %s, max=%d entries\n",
+         ifname, arr.max_count);
+
+  int rc = nl80211_request(iw, ifname, NL80211_CMD_GET_SURVEY,
+                           NLM_F_DUMP, nl80211_get_survey_cb, &arr);
+
+  if ((arr.count * sizeof(struct iwinfo_survey_entry)) > *len) {
+    printf("error: BUG: survey overflow detected: count=%u > max=%d\n",
+           arr.count, *len / (int)sizeof(struct iwinfo_survey_entry));
+    arr.count = *len / sizeof(struct iwinfo_survey_entry);
+  }
+
+  if (!rc && arr.count > 0)
+    *len = arr.count * sizeof(struct iwinfo_survey_entry);
   else
     *len = 0;
+
+  printf("survey: collected %u entries\n", arr.count);
 
   return 0;
 }
