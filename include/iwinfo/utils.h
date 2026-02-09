@@ -24,7 +24,7 @@
 #include <uci.h>
 #include <libubus.h>
 
-#include "iwinfo.h"
+#include "iwinfo-mt.h"
 
 #ifndef ARRAY_SIZE
 #define ARRAY_SIZE(arr) (sizeof(arr) / sizeof((arr)[0]))
@@ -53,7 +53,6 @@ size_t iwinfo_format_hwmodes(int modes, char *buf, size_t len);
 int iwinfo_htmode_is_ht(int htmode);
 int iwinfo_htmode_is_vht(int htmode);
 int iwinfo_htmode_is_he(int htmode);
-int iwinfo_htmode_is_eht(int htmode);
 
 int iwinfo_ifup(const char *ifname);
 int iwinfo_ifdown(const char *ifname);

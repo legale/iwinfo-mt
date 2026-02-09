@@ -19,55 +19,45 @@
 #ifndef __IWINFO_NL80211_H_
 #define __IWINFO_NL80211_H_
 
+#include <dirent.h>
 #include <errno.h>
 #include <fcntl.h>
-#include <unistd.h>
-#include <string.h>
-#include <dirent.h>
-#include <signal.h>
-#include <sys/un.h>
-#include <netlink/netlink.h>
-#include <netlink/genl/genl.h>
-#include <netlink/genl/family.h>
 #include <netlink/genl/ctrl.h>
+#include <netlink/genl/family.h>
+#include <netlink/genl/genl.h>
+#include <netlink/netlink.h>
+#include <signal.h>
+#include <string.h>
+#include <sys/un.h>
+#include <unistd.h>
 
-#include "iwinfo.h"
-#include "iwinfo/utils.h"
 #include "api/nl80211.h"
 
-struct nl80211_state {
-	struct nl_sock *nl_sock;
-	struct nl_cache *nl_cache;
-	struct genl_family *nl80211;
-	struct genl_family *nlctrl;
-};
-
-struct nl80211_msg_conveyor {
-	struct nl_msg *msg;
-	struct nl_cb *cb;
-};
 
 struct nl80211_event_conveyor {
-	uint32_t wait[(NL80211_CMD_MAX / 32) + !!(NL80211_CMD_MAX % 32)];
-	int recv;
+  uint32_t wait[(NL80211_CMD_MAX / 32) + !!(NL80211_CMD_MAX % 32)];
+  int recv;
 };
 
 struct nl80211_group_conveyor {
-	const char *name;
-	int id;
+  const char *name;
+  int id;
 };
 
 struct nl80211_rssi_rate {
-	int16_t rate;
-	int rate_samples;
-	int8_t  rssi;
-	int rssi_samples;
+  int16_t rate;
+  int rate_samples;
+  int8_t rssi;
+  int rssi_samples;
 };
 
 struct nl80211_array_buf {
-	void *buf;
-	int count;
-	int max_count;
+  void *buf;
+  int count;
+  int max_count;  // добавляем максимальный размер
 };
+
+nl80211_state_t *nl80211_init();
+void nl80211_close(nl80211_state_t *s);
 
 #endif
