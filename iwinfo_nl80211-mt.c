@@ -1110,30 +1110,64 @@ static int nl80211_get_ssid_bssid_cb(struct nl_msg *msg, void *arg) {
   }
 }
 
+static char* get_parent_ifname(const char *ifname) {
+    char *dot = strchr(ifname, '.');
+    if (!dot)
+        return NULL;
+    
+    static char parent[IFNAMSIZ];
+    size_t len = dot - ifname;
+    if (len >= IFNAMSIZ)
+        return NULL;
+    
+    strncpy(parent, ifname, len);
+    parent[len] = '\0';
+    return parent;
+}
+
 static int nl80211_get_ssid(iwinfo_t *iw, const char *ifname, char *buf) {
-  char *res;
-  char resbuf[IFNAMSIZ];
-  resbuf[0] = '\0';
-  struct nl80211_ssid_bssid sb = {.ssid = (unsigned char *)buf};
-
-  /* try to find ssid from scan dump results */
-  res = nl80211_phy2ifname(iw, resbuf, ifname);
-  sb.ssid[0] = 0;
-
-  nl80211_request(iw, res ? res : ifname, NL80211_CMD_GET_SCAN, NLM_F_DUMP,
-                  nl80211_get_ssid_bssid_cb, &sb);
-
-  /* failed, try to find from hostapd info */
-  if (sb.ssid[0] == 0)
-    nl80211_hostapd_query(iw, ifname, "ssid", sb.ssid,
-                          IWINFO_ESSID_MAX_SIZE + 1);
-
-  /* failed, try to obtain Mesh ID */
-  if (sb.ssid[0] == 0)
-    iwinfo_ubus_query(res ? res : ifname, "mesh_id",
-                      buf, IWINFO_ESSID_MAX_SIZE + 1);
-
-  return (sb.ssid[0] == 0) ? -1 : 0;
+    char *res;
+    char resbuf[IFNAMSIZ];
+    resbuf[0] = '\0';
+    struct nl80211_ssid_bssid sb = {.ssid = (unsigned char *)buf};
+    
+    /* try to find ssid from scan dump results */
+    res = nl80211_phy2ifname(iw, resbuf, ifname);
+    sb.ssid[0] = 0;
+    
+    nl80211_request(iw, res ? res : ifname, NL80211_CMD_GET_SCAN, NLM_F_DUMP,
+                    nl80211_get_ssid_bssid_cb, &sb);
+    
+    /* If SSID not found and interface name contains dot (VLAN), try parent interface */
+    if (sb.ssid[0] == 0) {
+        char *parent_if = get_parent_ifname(ifname);
+        if (parent_if) {
+            nl80211_request(iw, parent_if, NL80211_CMD_GET_SCAN, NLM_F_DUMP,
+                           nl80211_get_ssid_bssid_cb, &sb);
+        }
+    }
+    
+    /* failed, try to find from hostapd info */
+    if (sb.ssid[0] == 0) {
+        nl80211_hostapd_query(iw, ifname, "ssid", sb.ssid,
+                             IWINFO_ESSID_MAX_SIZE + 1);
+        
+        /* If still no SSID and we have VLAN, try parent interface with hostapd */
+        if (sb.ssid[0] == 0) {
+            char *parent_if = get_parent_ifname(ifname);
+            if (parent_if) {
+                nl80211_hostapd_query(iw, parent_if, "ssid", sb.ssid,
+                                    IWINFO_ESSID_MAX_SIZE + 1);
+            }
+        }
+    }
+    
+    /* failed, try to obtain Mesh ID */
+    if (sb.ssid[0] == 0)
+        iwinfo_ubus_query(res ? res : ifname, "mesh_id",
+                         buf, IWINFO_ESSID_MAX_SIZE + 1);
+    
+    return (sb.ssid[0] == 0) ? -1 : 0;
 }
 
 static int nl80211_get_bssid(iwinfo_t *iw, const char *ifname, char *buf) {
