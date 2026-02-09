@@ -11,6 +11,7 @@
 #include <stdarg.h>
 #include <stdlib.h>
 #include <sys/stat.h>
+#include <stdbool.h>
 
 #include "include/iwinfo-mt.h"
 #include "iwinfo_nl80211-mt.h"
@@ -1056,6 +1057,11 @@ static int nl80211_get_macaddr_cb(struct nl_msg *msg, void *arg) {
            sizeof(sb->bssid) - 1);
   }
 
+  if (sb->ssid && tb[NL80211_ATTR_MESH_ID]) {
+    memcpy(sb->ssid, nla_data(tb[NL80211_ATTR_MESH_ID]),
+           min(nla_len(tb[NL80211_ATTR_MESH_ID]), IWINFO_ESSID_MAX_SIZE));
+  }
+
   return NL_SKIP;
 }
 
@@ -1161,10 +1167,10 @@ static int nl80211_get_ssid(iwinfo_t *iw, const char *ifname, char *buf) {
     }
   }
 
-  /* failed, try to obtain Mesh ID */
+  /* failed, try to obtain Mesh ID from interface info */
   if (sb.ssid[0] == 0)
-    iwinfo_ubus_query(res ? res : ifname, "mesh_id",
-                      buf, IWINFO_ESSID_MAX_SIZE + 1);
+    nl80211_request(iw, res ? res : ifname, NL80211_CMD_GET_INTERFACE, 0,
+                    nl80211_get_macaddr_cb, &sb);
 
   return (sb.ssid[0] == 0) ? -1 : 0;
 }
