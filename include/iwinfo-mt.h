@@ -265,35 +265,35 @@ struct iwinfo_survey_entry {
 };
 
 struct iwinfo_airtime_entry {
-    uint8_t mac[6];
+  uint8_t mac[6];
 
-    /* Global / Channel */
-    uint8_t busy;
-    uint8_t busy_ext;
-    uint8_t interference;
-    uint8_t interference_ext;
-    int8_t noise;
+  /* Global / Channel */
+  uint8_t busy;
+  uint8_t busy_ext;
+  uint8_t interference;
+  uint8_t interference_ext;
+  int8_t noise;
 
-    /* AP */
-    uint8_t tx_ap;
-    uint8_t rx_ap;
-    uint8_t tx_ext_ap;
-    uint8_t rx_ext_ap;
-    uint8_t other_ap;
-    uint8_t other_ext_ap;
+  /* AP */
+  uint8_t tx_ap;
+  uint8_t rx_ap;
+  uint8_t tx_ext_ap;
+  uint8_t rx_ext_ap;
+  uint8_t other_ap;
+  uint8_t other_ext_ap;
 
-    /* Station */
-    uint8_t tx_sta;
-    uint8_t rx_sta;
-    uint8_t tx_ext_sta;
-    uint8_t rx_ext_sta;
-    uint8_t other_sta;
-    uint8_t other_ext_sta;
+  /* Station */
+  uint8_t tx_sta;
+  uint8_t rx_sta;
+  uint8_t tx_ext_sta;
+  uint8_t rx_ext_sta;
+  uint8_t other_sta;
+  uint8_t other_ext_sta;
 
-    /* Info */
-    int8_t signal;
-    struct iwinfo_rate_entry rx_rate;
-    struct iwinfo_rate_entry tx_rate;
+  /* Info */
+  int8_t signal;
+  struct iwinfo_rate_entry rx_rate;
+  struct iwinfo_rate_entry tx_rate;
 };
 
 struct iwinfo_txpwrlist_entry {
@@ -434,16 +434,22 @@ typedef struct iwinfo_ops {
   int (*assoclist)(iwinfo_t *iw, const char *, char *, int *);
   int (*txpwrlist)(iwinfo_t *iw, const char *, char *, int *);
   int (*scanlist)(iwinfo_t *iw, const char *, char *, int *);
-  int (*scan_trigger)(iwinfo_t *iw, const char *, int duration, int freq, int duration_mandatory);
+  int (*scan_trigger)(iwinfo_t *iw, const char *, int duration, int freq,
+                      int duration_mandatory);
   int (*scan_get)(iwinfo_t *iw, const char *, char *, int *);
   int (*freqlist)(iwinfo_t *iw, const char *, char *, int *);
   int (*countrylist)(iwinfo_t *iw, const char *, char *, int *);
   int (*survey)(iwinfo_t *iw, const char *, char *, int *);
   int (*lookup_phy)(iwinfo_t *iw, const char *, char *);
   int (*phy_path)(iwinfo_t *iw, const char *phyname, const char **path);
-  int (*station_dump)(iwinfo_t *iw, const char *ifname, const uint8_t *mac, struct iwinfo_assoclist_entry *buf);
-  int (*airtime_survey)(iwinfo_t *iw, const char *ifname, struct iwinfo_airtime_entry *buf);
-  int (*airtime_station)(iwinfo_t *iw, const char *ifname, const uint8_t *mac, char *buf, int *len);
+  int (*phy_to_ifnames)(iwinfo_t *iw, const char *phyname,
+                        char (*ifnames)[IFNAMSIZ], int max);
+  int (*station_dump)(iwinfo_t *iw, const char *ifname, const uint8_t *mac,
+                      struct iwinfo_assoclist_entry *buf);
+  int (*airtime_survey)(iwinfo_t *iw, const char *ifname,
+                        struct iwinfo_airtime_entry *buf);
+  int (*airtime_station)(iwinfo_t *iw, const char *ifname, const uint8_t *mac,
+                         char *buf, int *len);
   void (*close)(nl80211_state_t *state);
 } iwinfo_ops_t;
 
