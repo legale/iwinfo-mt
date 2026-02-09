@@ -154,7 +154,6 @@
 0x168c 0x0030 0x168c 0x3114    0      0  "Atheros"  "AR9390"
 0x168c 0x0033 0x168c 0xa120    0      0  "Atheros"  "AR9580"
 0x168c 0x0033 0x168c 0xa136    0      0  "Atheros"  "AR9580"
-0x168c 0x0033 0x168c 0x3123    0      0  "Atheros"  "AR9590"
 0x168c 0x0033 0x19b6 0xd014    0      0  "MikroTik" "R11e-5HnD"
 0x168c 0x0033 0x19b6 0xd057    0      0  "MikroTik" "R11e-5HnDr2"
 0x168c 0x0033 0x19b6 0xd016    0      0  "MikroTik" "R11e-2HPnD"
@@ -172,7 +171,6 @@
 0x17cb 0x1104 0x17cb 0x1104    0      0  "Qualcomm Atheros" "QCN6024/9024/9074"
 0x1814 0x3051 0x1814 0x0007    0      0  "Ralink"   "Rt3051" /* needs fixing */
 0x1814 0x3052 0x1814 0x0008    0      0  "Ralink"   "Rt3052" /* needs fixing */
-0x1814 0x3091 0x1814 0x3091    0      0  "Ralink"   "RT5592"
 0x1814 0x3350 0x1814 0x000b    0      0  "Ralink"   "Rt3350" /* needs fixing */
 0x1814 0x3662 0x1814 0x000d    0      0  "Ralink"   "Rt3662" /* needs fixing */
 0x11ab 0x2a55 0x11ab 0x0000    0      0  "Marvell"  "88W8864"
@@ -190,9 +188,6 @@
 0x14c3 0x7662 0x14c3 0x7662    0      0  "MediaTek" "MT76x2E"
 0x14c3 0x7915 0x14c3 0x7915    0      0  "MediaTek" "MT7915E"
 0x14c3 0x7906 0x14c3 0x7906    0      0  "MediaTek" "MT7916AN"
-0x14c3 0x7925 0x1a3b 0x6002    0      0  "MediaTek" "MT7925E"
-0x14c3 0x7990 0x14C3 0x6639    0      0  "MediaTek" "MT7996E"
-0x14c3 0x7992 0x14c3 0x7992    0      0  "MediaTek" "MT7992E"
 0x14e4 0xaa52 0x14e4 0xaa52    0      0  "Broadcom" "BCM43602"
 0x02d0 0xa9a6 0x0000 0x0000    0      0  "Cypress"  "CYW43455"
 0x02d0 0x4345 0x0000 0x0000    0      0  "Cypress"  "CYW43455"
@@ -256,10 +251,8 @@
 "qca,qca9550-wmac"      0      0  "Qualcomm Atheros"  "QCA9550"
 "qca,qca9560-wmac"      0      0  "Qualcomm Atheros"  "QCA9560"
 "qcom,ipq4019-wifi"     0      0  "Qualcomm Atheros" "IPQ4019"
-"qcom,ipq5018-wifi"     0      0  "Qualcomm Atheros" "IPQ5018"
 "qcom,ipq6018-wifi"     0      0  "Qualcomm Atheros" "IPQ6018"
 "qcom,ipq8074-wifi"     0      0  "Qualcomm Atheros" "IPQ8074"
-"qcom,qcn6122-wifi"     0      0  "Qualcomm Atheros" "QCN6102/QCN6122"
 "mediatek,mt7622-wmac"  0      0  "MediaTek" "MT7622"
 "mediatek,mt7628-wmac"  0      0  "MediaTek" "MT7628"
 "mediatek,mt7981-wmac"  0      0  "MediaTek" "MT7981"
