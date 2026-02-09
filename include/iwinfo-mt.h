@@ -280,6 +280,7 @@ struct iwinfo_airtime_entry {
     uint8_t tx_ext_ap;
     uint8_t rx_ext_ap;
     uint8_t other_ap;
+    uint8_t other_ext_ap;
 
     /* Station */
     uint8_t tx_sta;
@@ -287,6 +288,7 @@ struct iwinfo_airtime_entry {
     uint8_t tx_ext_sta;
     uint8_t rx_ext_sta;
     uint8_t other_sta;
+    uint8_t other_ext_sta;
 
     /* Info */
     int8_t signal;

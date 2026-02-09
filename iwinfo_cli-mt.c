@@ -916,7 +916,9 @@ static void print_airtime_station(iwinfo_t *iw, const char *ifname, const char *
       printf("  RX_sta:    %u%%\n", e->rx_sta);
       printf("  RX_ext_sta:%u%%\n", e->rx_ext_sta);
       printf("  Other_ap:  %u%%\n", e->other_ap);
+      printf("  Other_ext_ap:%u%%\n", e->other_ext_ap);
       printf("  Other_sta: %u%%\n", e->other_sta);
+      printf("  Other_ext_sta:%u%%\n", e->other_ext_sta);
       printf("  Interf:    %u%%\n", e->interference);
       printf("  Interf_ext:%u%%\n", e->interference_ext);
       printf("  Signal:    %s / %s (SNR %d)\n",
