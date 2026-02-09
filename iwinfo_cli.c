@@ -17,16 +17,16 @@
  */
 
 #include <glob.h>
-#include <stdio.h>
 #include <stdbool.h>
+#include <stdio.h>
 
 #include "iwinfo-mt.h"
 
 static char *format_bssid(unsigned char *mac) {
   static char buf[18];
 
-  snprintf(buf, sizeof(buf), "%02X:%02X:%02X:%02X:%02X:%02X",
-           mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
+  snprintf(buf, sizeof(buf), "%02X:%02X:%02X:%02X:%02X:%02X", mac[0], mac[1],
+           mac[2], mac[3], mac[4], mac[5]);
 
   return buf;
 }
@@ -153,8 +153,8 @@ static char *format_rate(int rate) {
   if (rate <= 0)
     snprintf(buf, sizeof(buf), "unknown");
   else
-    snprintf(buf, sizeof(buf), "%d.%d MBit/s",
-             rate / 1000, (rate % 1000) / 100);
+    snprintf(buf, sizeof(buf), "%d.%d MBit/s", rate / 1000,
+             (rate % 1000) / 100);
 
   return buf;
 }
@@ -229,8 +229,7 @@ static char *format_encryption(struct iwinfo_crypto_entry *c) {
 
       pos--;
 
-      sprintf(pos, " %s (%s)",
-              format_enc_suites(c->auth_suites),
+      sprintf(pos, " %s (%s)", format_enc_suites(c->auth_suites),
               format_enc_ciphers(c->pair_ciphers | c->group_ciphers));
     } else {
       snprintf(buf, sizeof(buf), "none");
@@ -329,12 +328,11 @@ static char *print_hardware_id(iwinfo_t *iw, const char *ifname) {
       snprintf(buf, sizeof(buf), "embedded");
     else if (ids.vendor_id == 0 && ids.device_id == 0 &&
              ids.subsystem_vendor_id != 0 && ids.subsystem_device_id != 0)
-      snprintf(buf, sizeof(buf), "USB %04X:%04X",
-               ids.subsystem_vendor_id, ids.subsystem_device_id);
+      snprintf(buf, sizeof(buf), "USB %04X:%04X", ids.subsystem_vendor_id,
+               ids.subsystem_device_id);
     else
-      snprintf(buf, sizeof(buf), "%04X:%04X %04X:%04X",
-               ids.vendor_id, ids.device_id,
-               ids.subsystem_vendor_id, ids.subsystem_device_id);
+      snprintf(buf, sizeof(buf), "%04X:%04X %04X:%04X", ids.vendor_id,
+               ids.device_id, ids.subsystem_vendor_id, ids.subsystem_device_id);
   } else {
     snprintf(buf, sizeof(buf), "unknown");
   }
@@ -545,45 +543,31 @@ static char *print_phyname(iwinfo_t *iw, const char *ifname) {
 }
 
 static void print_info(iwinfo_t *iw, const char *ifname) {
-  printf("%-9s ESSID: %s\n",
-         ifname,
-         print_ssid(iw, ifname));
-  printf("          Access Point: %s\n",
-         print_bssid(iw, ifname));
+  printf("%-9s ESSID: %s\n", ifname, print_ssid(iw, ifname));
+  printf("          Access Point: %s\n", print_bssid(iw, ifname));
   printf("          Mode: %s  Channel: %s (%s)  HT Mode: %s\n",
-         print_mode(iw, ifname),
-         print_channel(iw, ifname),
-         print_frequency(iw, ifname),
-         print_htmode(iw, ifname));
+         print_mode(iw, ifname), print_channel(iw, ifname),
+         print_frequency(iw, ifname), print_htmode(iw, ifname));
   if (iw->iw->center_chan1 != NULL) {
-    printf("          Center Channel 1: %s",
-           print_center_chan1(iw, ifname));
+    printf("          Center Channel 1: %s", print_center_chan1(iw, ifname));
     printf(" 2: %s\n", print_center_chan2(iw, ifname));
   }
   printf("          Tx-Power: %s  Link Quality: %s/%s\n",
-         print_txpower(iw, ifname),
-         print_quality(iw, ifname),
+         print_txpower(iw, ifname), print_quality(iw, ifname),
          print_quality_max(iw, ifname));
-  printf("          Signal: %s  Noise: %s\n",
-         print_signal(iw, ifname),
+  printf("          Signal: %s  Noise: %s\n", print_signal(iw, ifname),
          print_noise(iw, ifname));
-  printf("          Bit Rate: %s\n",
-         print_rate(iw, ifname));
-  printf("          Encryption: %s\n",
-         print_encryption(iw, ifname));
-  printf("          Type: %s  HW Mode(s): %s\n",
-         print_type(iw, ifname),
+  printf("          Bit Rate: %s\n", print_rate(iw, ifname));
+  printf("          Encryption: %s\n", print_encryption(iw, ifname));
+  printf("          Type: %s  HW Mode(s): %s\n", print_type(iw, ifname),
          print_hwmodes(iw, ifname));
-  printf("          Hardware: %s [%s]\n",
-         print_hardware_id(iw, ifname),
+  printf("          Hardware: %s [%s]\n", print_hardware_id(iw, ifname),
          print_hardware_name(iw, ifname));
-  printf("          TX power offset: %s\n",
-         print_txpower_offset(iw, ifname));
+  printf("          TX power offset: %s\n", print_txpower_offset(iw, ifname));
   printf("          Frequency offset: %s\n",
          print_frequency_offset(iw, ifname));
   printf("          Supports VAPs: %s  PHY name: %s\n",
-         print_mbssid_supp(iw, ifname),
-         print_phyname(iw, ifname));
+         print_mbssid_supp(iw, ifname), print_phyname(iw, ifname));
 }
 
 static void print_scanlist(iwinfo_t *iw, const char *ifname) {
@@ -602,22 +586,15 @@ static void print_scanlist(iwinfo_t *iw, const char *ifname) {
   for (i = 0, x = 1; i < len; i += sizeof(struct iwinfo_scanlist_entry), x++) {
     e = (struct iwinfo_scanlist_entry *)&buf[i];
 
-    printf("Cell %02d - Address: %s\n",
-           x,
-           format_bssid(e->mac));
-    printf("          ESSID: %s\n",
-           format_ssid(e->ssid));
+    printf("Cell %02d - Address: %s\n", x, format_bssid(e->mac));
+    printf("          ESSID: %s\n", format_ssid(e->ssid));
     printf("          Mode: %s  Frequency: %s  Band: %s  Channel: %s\n",
-           IWINFO_OPMODE_NAMES[e->mode],
-           format_frequency(e->mhz),
-           format_band(e->band),
-           format_channel(e->channel));
+           IWINFO_OPMODE_NAMES[e->mode], format_frequency(e->mhz),
+           format_band(e->band), format_channel(e->channel));
     printf("          Signal: %s  Quality: %s/%s\n",
-           format_signal(e->signal - 0x100),
-           format_quality(e->quality),
+           format_signal(e->signal - 0x100), format_quality(e->quality),
            format_quality_max(e->quality_max));
-    printf("          Encryption: %s\n",
-           format_encryption(&e->crypto));
+    printf("          Encryption: %s\n", format_encryption(&e->crypto));
     printf("          HT Operation:\n");
     printf("                    Primary Channel: %d\n",
            e->ht_chan_info.primary_chan);
@@ -640,7 +617,8 @@ static void print_scanlist(iwinfo_t *iw, const char *ifname) {
   }
 }
 
-static void print_scan2(iwinfo_t *iw, const char *ifname, int duration, int freq, int duration_mandatory) {
+static void print_scan2(iwinfo_t *iw, const char *ifname, int duration,
+                        int freq, int duration_mandatory) {
   int i, x, len;
   char buf[IWINFO_BUFSIZE];
   struct iwinfo_scanlist_entry *e;
@@ -668,22 +646,15 @@ static void print_scan2(iwinfo_t *iw, const char *ifname, int duration, int freq
   for (i = 0, x = 1; i < len; i += sizeof(struct iwinfo_scanlist_entry), x++) {
     e = (struct iwinfo_scanlist_entry *)&buf[i];
 
-    printf("Cell %02d - Address: %s\n",
-           x,
-           format_bssid(e->mac));
-    printf("          ESSID: %s\n",
-           format_ssid(e->ssid));
+    printf("Cell %02d - Address: %s\n", x, format_bssid(e->mac));
+    printf("          ESSID: %s\n", format_ssid(e->ssid));
     printf("          Mode: %s  Frequency: %s  Band: %s  Channel: %s\n",
-           IWINFO_OPMODE_NAMES[e->mode],
-           format_frequency(e->mhz),
-           format_band(e->band),
-           format_channel(e->channel));
+           IWINFO_OPMODE_NAMES[e->mode], format_frequency(e->mhz),
+           format_band(e->band), format_channel(e->channel));
     printf("          Signal: %s  Quality: %s/%s\n",
-           format_signal(e->signal - 0x100),
-           format_quality(e->quality),
+           format_signal(e->signal - 0x100), format_quality(e->quality),
            format_quality_max(e->quality_max));
-    printf("          Encryption: %s\n",
-           format_encryption(&e->crypto));
+    printf("          Encryption: %s\n", format_encryption(&e->crypto));
     printf("          HT Operation:\n");
     printf("                    Primary Channel: %d\n",
            e->ht_chan_info.primary_chan);
@@ -725,9 +696,7 @@ static void print_txpwrlist(iwinfo_t *iw, const char *ifname) {
   for (i = 0; i < len; i += sizeof(struct iwinfo_txpwrlist_entry)) {
     e = (struct iwinfo_txpwrlist_entry *)&buf[i];
 
-    printf("%s%3d dBm (%4d mW)\n",
-           (pwr == e->dbm) ? "*" : " ",
-           e->dbm + off,
+    printf("%s%3d dBm (%4d mW)\n", (pwr == e->dbm) ? "*" : " ", e->dbm + off,
            iwinfo_dbm2mw(e->dbm + off));
   }
 }
@@ -748,12 +717,9 @@ static void print_freqlist(iwinfo_t *iw, const char *ifname) {
   for (i = 0; i < len; i += sizeof(struct iwinfo_freqlist_entry)) {
     e = (struct iwinfo_freqlist_entry *)&buf[i];
 
-    printf("%s %s (Band: %s, Channel %s) %s\n",
-           (freq == e->mhz) ? "*" : " ",
-           format_frequency(e->mhz),
-           format_band(e->band),
-           format_channel(e->channel),
-           format_freqflags(e->flags));
+    printf("%s %s (Band: %s, Channel %s) %s\n", (freq == e->mhz) ? "*" : " ",
+           format_frequency(e->mhz), format_band(e->band),
+           format_channel(e->channel), format_freqflags(e->flags));
   }
 }
 
@@ -773,42 +739,36 @@ static void print_assoclist(iwinfo_t *iw, const char *ifname) {
   for (i = 0; i < len; i += sizeof(struct iwinfo_assoclist_entry)) {
     e = (struct iwinfo_assoclist_entry *)&buf[i];
 
-    printf("%s  %s / %s (SNR %d)  %d ms ago\n",
-           format_bssid(e->mac),
-           format_signal(e->signal),
-           format_noise(e->noise),
-           (e->signal - e->noise),
-           e->inactive);
+    printf("%s  %s / %s (SNR %d)  %d ms ago\n", format_bssid(e->mac),
+           format_signal(e->signal), format_noise(e->noise),
+           (e->signal - e->noise), e->inactive);
 
-    printf("	RX: %-38s  %8d Pkts.\n",
-           format_assocrate(&e->rx_rate),
+    printf("	RX: %-38s  %8d Pkts.\n", format_assocrate(&e->rx_rate),
            e->rx_packets);
 
-    printf("	TX: %-38s  %8d Pkts.\n",
-           format_assocrate(&e->tx_rate),
+    printf("	TX: %-38s  %8d Pkts.\n", format_assocrate(&e->tx_rate),
            e->tx_packets);
 
-    printf("	expected throughput: %s\n",
-           format_rate(e->thr));
+    printf("	expected throughput: %s\n", format_rate(e->thr));
 
     if (e->tx_duration)
-        printf("    TX Duration: %lu us\n", (unsigned long)e->tx_duration);
+      printf("    TX Duration: %lu us\n", (unsigned long)e->tx_duration);
     if (e->rx_duration)
-        printf("    RX Duration: %lu us\n", (unsigned long)e->rx_duration);
+      printf("    RX Duration: %lu us\n", (unsigned long)e->rx_duration);
     if (e->airtime_weight)
-        printf("    Airtime Weight: %u\n", e->airtime_weight);
+      printf("    Airtime Weight: %u\n", e->airtime_weight);
 
     printf("\n");
   }
 }
 
-static void print_station_dump(iwinfo_t *iw, const char *ifname, const char *mac) {
+static void print_station_dump(iwinfo_t *iw, const char *ifname,
+                               const char *mac) {
   struct iwinfo_assoclist_entry e;
   uint8_t mac_bin[6];
 
-  if (sscanf(mac, "%hhx:%hhx:%hhx:%hhx:%hhx:%hhx",
-             &mac_bin[0], &mac_bin[1], &mac_bin[2],
-             &mac_bin[3], &mac_bin[4], &mac_bin[5]) != 6) {
+  if (sscanf(mac, "%hhx:%hhx:%hhx:%hhx:%hhx:%hhx", &mac_bin[0], &mac_bin[1],
+             &mac_bin[2], &mac_bin[3], &mac_bin[4], &mac_bin[5]) != 6) {
     printf("Invalid MAC address\n");
     return;
   }
@@ -818,30 +778,24 @@ static void print_station_dump(iwinfo_t *iw, const char *ifname, const char *mac
     return;
   }
 
-  printf("%s  %s / %s (SNR %d)  %d ms ago\n",
-         format_bssid(e.mac),
-         format_signal(e.signal),
-         format_noise(e.noise),
-         (e.signal - e.noise),
+  printf("%s  %s / %s (SNR %d)  %d ms ago\n", format_bssid(e.mac),
+         format_signal(e.signal), format_noise(e.noise), (e.signal - e.noise),
          e.inactive);
 
-  printf("	RX: %-38s  %8d Pkts.\n",
-         format_assocrate(&e.rx_rate),
+  printf("	RX: %-38s  %8d Pkts.\n", format_assocrate(&e.rx_rate),
          e.rx_packets);
 
-  printf("	TX: %-38s  %8d Pkts.\n",
-         format_assocrate(&e.tx_rate),
+  printf("	TX: %-38s  %8d Pkts.\n", format_assocrate(&e.tx_rate),
          e.tx_packets);
 
-  printf("	expected throughput: %s\n",
-         format_rate(e.thr));
+  printf("	expected throughput: %s\n", format_rate(e.thr));
 
   if (e.tx_duration)
-      printf("    TX Duration: %lu us\n", (unsigned long)e.tx_duration);
+    printf("    TX Duration: %lu us\n", (unsigned long)e.tx_duration);
   if (e.rx_duration)
-      printf("    RX Duration: %lu us\n", (unsigned long)e.rx_duration);
+    printf("    RX Duration: %lu us\n", (unsigned long)e.rx_duration);
   if (e.airtime_weight)
-      printf("    Airtime Weight: %u\n", e.airtime_weight);
+    printf("    Airtime Weight: %u\n", e.airtime_weight);
 }
 
 static void print_airtime_survey(iwinfo_t *iw, const char *ifname) {
@@ -865,69 +819,67 @@ static void print_airtime_survey(iwinfo_t *iw, const char *ifname) {
   printf("  Noise:     %s\n", format_noise(e.noise));
 }
 
-static void print_airtime_station(iwinfo_t *iw, const char *ifname, const char *mac) {
+static void print_airtime_station(iwinfo_t *iw, const char *ifname,
+                                  const char *mac) {
   int i, len;
   char buf[IWINFO_BUFSIZE];
   struct iwinfo_airtime_entry *e;
   uint8_t mac_bin[6] = {0};
 
   if (!iw->iw->airtime_station) {
-      printf("Function not supported\n");
-      return;
+    printf("Function not supported\n");
+    return;
   }
 
   len = IWINFO_BUFSIZE;
 
   if (mac) {
-      if (sscanf(mac, "%hhx:%hhx:%hhx:%hhx:%hhx:%hhx",
-                 &mac_bin[0], &mac_bin[1], &mac_bin[2],
-                 &mac_bin[3], &mac_bin[4], &mac_bin[5]) != 6) {
-          printf("Invalid MAC address\n");
-          return;
-      }
-      
-      if (iw->iw->airtime_station(iw, ifname, mac_bin, buf, &len)) {
-          printf("No airtime station information available\n");
-          return;
-      }
+    if (sscanf(mac, "%hhx:%hhx:%hhx:%hhx:%hhx:%hhx", &mac_bin[0], &mac_bin[1],
+               &mac_bin[2], &mac_bin[3], &mac_bin[4], &mac_bin[5]) != 6) {
+      printf("Invalid MAC address\n");
+      return;
+    }
+
+    if (iw->iw->airtime_station(iw, ifname, mac_bin, buf, &len)) {
+      printf("No airtime station information available\n");
+      return;
+    }
   } else {
-      if (iw->iw->airtime_station(iw, ifname, NULL, buf, &len)) {
-          printf("No airtime station information available\n");
-          return;
-      }
+    if (iw->iw->airtime_station(iw, ifname, NULL, buf, &len)) {
+      printf("No airtime station information available\n");
+      return;
+    }
   }
 
   if (len <= 0) {
-      printf("No stations found\n");
-      return;
+    printf("No stations found\n");
+    return;
   }
 
   for (i = 0; i < len; i += sizeof(struct iwinfo_airtime_entry)) {
-      e = (struct iwinfo_airtime_entry *)&buf[i];
-      printf("Station %s Airtime:\n", format_bssid(e->mac));
-      printf("  Busy:      %u%%\n", e->busy);
-      printf("  Busy_ext:  %u%%\n", e->busy_ext);
-      printf("  TX_ap:     %u%%\n", e->tx_ap);
-      printf("  TX_ext_ap: %u%%\n", e->tx_ext_ap);
-      printf("  RX_ap:     %u%%\n", e->rx_ap);
-      printf("  RX_ext_ap: %u%%\n", e->rx_ext_ap);
-      printf("  TX_sta:    %u%%\n", e->tx_sta);
-      printf("  TX_ext_sta:%u%%\n", e->tx_ext_sta);
-      printf("  RX_sta:    %u%%\n", e->rx_sta);
-      printf("  RX_ext_sta:%u%%\n", e->rx_ext_sta);
-      printf("  Other_ap:  %u%%\n", e->other_ap);
-      printf("  Other_ext_ap:%u%%\n", e->other_ext_ap);
-      printf("  Other_sta: %u%%\n", e->other_sta);
-      printf("  Other_ext_sta:%u%%\n", e->other_ext_sta);
-      printf("  Interf:    %u%%\n", e->interference);
-      printf("  Interf_ext:%u%%\n", e->interference_ext);
-      printf("  Signal:    %s / %s (SNR %d)\n",
-             format_signal(e->signal),
-             format_noise(e->noise),
-             (e->signal - e->noise));
-      printf("  RX Rate:   %s\n", format_assocrate(&e->rx_rate));
-      printf("  TX Rate:   %s\n", format_assocrate(&e->tx_rate));
-      printf("\n");
+    e = (struct iwinfo_airtime_entry *)&buf[i];
+    printf("Station %s Airtime:\n", format_bssid(e->mac));
+    printf("  Busy:      %u%%\n", e->busy);
+    printf("  Busy_ext:  %u%%\n", e->busy_ext);
+    printf("  TX_ap:     %u%%\n", e->tx_ap);
+    printf("  TX_ext_ap: %u%%\n", e->tx_ext_ap);
+    printf("  RX_ap:     %u%%\n", e->rx_ap);
+    printf("  RX_ext_ap: %u%%\n", e->rx_ext_ap);
+    printf("  TX_sta:    %u%%\n", e->tx_sta);
+    printf("  TX_ext_sta:%u%%\n", e->tx_ext_sta);
+    printf("  RX_sta:    %u%%\n", e->rx_sta);
+    printf("  RX_ext_sta:%u%%\n", e->rx_ext_sta);
+    printf("  Other_ap:  %u%%\n", e->other_ap);
+    printf("  Other_ext_ap:%u%%\n", e->other_ext_ap);
+    printf("  Other_sta: %u%%\n", e->other_sta);
+    printf("  Other_ext_sta:%u%%\n", e->other_ext_sta);
+    printf("  Interf:    %u%%\n", e->interference);
+    printf("  Interf_ext:%u%%\n", e->interference_ext);
+    printf("  Signal:    %s / %s (SNR %d)\n", format_signal(e->signal),
+           format_noise(e->noise), (e->signal - e->noise));
+    printf("  RX Rate:   %s\n", format_assocrate(&e->rx_rate));
+    printf("  TX Rate:   %s\n", format_assocrate(&e->tx_rate));
+    printf("\n");
   }
 }
 
@@ -962,9 +914,8 @@ static void print_countrylist(iwinfo_t *iw, const char *ifname) {
 
   for (l = IWINFO_ISO3166_NAMES; l->iso3166; l++) {
     if ((ccode = lookup_country(buf, len, l->iso3166)) != NULL) {
-      printf("%s %4s	%c%c\n",
-             strncmp(ccode, curcode, 2) ? " " : "*",
-             ccode, (l->iso3166 / 256), (l->iso3166 % 256));
+      printf("%s %4s	%c%c\n", strncmp(ccode, curcode, 2) ? " " : "*", ccode,
+             (l->iso3166 / 256), (l->iso3166 % 256));
     }
   }
 }
@@ -1066,7 +1017,8 @@ static void usage(const char *argv0) {
           "	%s <device> airtime_station [mac]\n"
           "	%s <backend> phyname <section>\n"
           "	%s <backend> path <phy>\n",
-          argv0, argv0, argv0, argv0, argv0, argv0, argv0, argv0, argv0, argv0, argv0, argv0, argv0);
+          argv0, argv0, argv0, argv0, argv0, argv0, argv0, argv0, argv0, argv0,
+          argv0, argv0, argv0);
   exit(1);
 }
 
@@ -1074,7 +1026,7 @@ int main(int argc, char **argv) {
   int i, rv = 0;
   char *p, *argv0;
   iwinfo_t *iw = iwinfo_init();
-  if(iw == NULL){
+  if (iw == NULL) {
     fprintf(stderr, "failed iwinfo_init\n");
     return 1;
   }
@@ -1088,8 +1040,10 @@ int main(int argc, char **argv) {
     for (i = 0; i < globbuf.gl_pathc; i++) {
       p = strrchr(globbuf.gl_pathv[i], '/');
 
-      if (!p) continue;
-      if (!iw->iw->probe(iw, ++p)) continue;
+      if (!p)
+        continue;
+      if (!iw->iw->probe(iw, ++p))
+        continue;
 
       print_info(iw, p);
       printf("\n");
@@ -1115,6 +1069,26 @@ int main(int argc, char **argv) {
   /* Consume the ifname argument */
   NEXT_ARG();
 
+  if (argc == 1) {
+    char phy[IFNAMSIZ];
+    char ifnames[16][IFNAMSIZ];
+    int count, i;
+
+    /* Check if it's a phy name */
+    if (iw->iw->phy_to_ifnames &&
+        (count = iw->iw->phy_to_ifnames(iw, ifname, ifnames, 16)) > 0) {
+      for (i = 0; i < count; i++)
+        printf("%s\n", ifnames[i]);
+    }
+    /* Check if it's an interface name */
+    else if (!iw->iw->phyname(iw, ifname, phy)) {
+      printf("%s\n", phy);
+    } else {
+      fprintf(stderr, "No such wireless device or backend: %s\n", ifname);
+      rv = 1;
+    }
+  }
+
   while (argc > 1) {
     NEXT_ARG();
 
@@ -1124,9 +1098,18 @@ int main(int argc, char **argv) {
       print_scanlist(iw, ifname);
     } else if (matches(*argv, "scan2")) {
       int freq = 0, duration = 0, duration_mandatory = 0;
-      if (NEXT_ARG_OK()) { NEXT_ARG(); freq = atoi(*argv); }
-      if (NEXT_ARG_OK()) { NEXT_ARG(); duration = atoi(*argv); }
-      if (NEXT_ARG_OK()) { NEXT_ARG(); duration_mandatory = atoi(*argv); }
+      if (NEXT_ARG_OK()) {
+        NEXT_ARG();
+        freq = atoi(*argv);
+      }
+      if (NEXT_ARG_OK()) {
+        NEXT_ARG();
+        duration = atoi(*argv);
+      }
+      if (NEXT_ARG_OK()) {
+        NEXT_ARG();
+        duration_mandatory = atoi(*argv);
+      }
       print_scan2(iw, ifname, duration, freq, duration_mandatory);
     } else if (matches(*argv, "txpowerlist")) {
       print_txpwrlist(iw, ifname);
@@ -1153,11 +1136,11 @@ int main(int argc, char **argv) {
         /* Check if next arg is a MAC or another command */
         argv++;
         if (argc > 1 && strchr(*argv, ':')) {
-            mac = *argv;
-            argc--;
+          mac = *argv;
+          argc--;
         } else {
-            /* Not a MAC, put it back */
-            argv--;
+          /* Not a MAC, put it back */
+          argv--;
         }
       }
       print_airtime_station(iw, ifname, mac);
