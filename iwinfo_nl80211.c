@@ -2584,7 +2584,7 @@ static int nl80211_get_scanlist_wpactl(iwinfo_t *iw, const char *ifname, char *b
     return sock;
 
   send(sock, "ATTACH", 6, 0);
-  send(sock, "SCAN", 4, 0);
+  send(sock, "SCAN passive=1", 4, 0);
 
   /*
    * wait for scan results:
