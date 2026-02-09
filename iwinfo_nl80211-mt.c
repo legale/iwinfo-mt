@@ -1394,6 +1394,9 @@ static int nl80211_fill_signal_cb(struct nl_msg *msg, void *arg) {
       [NL80211_STA_INFO_LLID] = {.type = NLA_U16},
       [NL80211_STA_INFO_PLID] = {.type = NLA_U16},
       [NL80211_STA_INFO_PLINK_STATE] = {.type = NLA_U8},
+      [NL80211_STA_INFO_TX_DURATION] = {.type = NLA_U64},
+      [NL80211_STA_INFO_RX_DURATION] = {.type = NLA_U64},
+      [NL80211_STA_INFO_AIRTIME_WEIGHT] = {.type = NLA_U16},
   };
 
   static struct nla_policy rate_policy[NL80211_RATE_INFO_MAX + 1] = {
@@ -1942,7 +1945,7 @@ static int nl80211_get_survey_cb(struct nl_msg *msg, void *arg) {
   if (sinfo[NL80211_SURVEY_INFO_FREQUENCY]) e->mhz = nla_get_u32_safe(sinfo[NL80211_SURVEY_INFO_FREQUENCY]);
   // NLA_DBG("NL80211_SURVEY_INFO_FREQUENCY ");
 
-  if (sinfo[NL80211_SURVEY_INFO_NOISE]) e->noise = nla_get_u8_safe(sinfo[NL80211_SURVEY_INFO_NOISE]);
+  if (sinfo[NL80211_SURVEY_INFO_NOISE]) e->noise = (int8_t)nla_get_u8_safe(sinfo[NL80211_SURVEY_INFO_NOISE]);
   // NLA_DBG("NL80211_SURVEY_INFO_NOISE ");
 
   if (sinfo[NL80211_SURVEY_INFO_TIME]) e->active_time = nla_get_u64_safe(sinfo[NL80211_SURVEY_INFO_TIME]);
@@ -2131,6 +2134,15 @@ static int nl80211_get_assoclist_cb(struct nl_msg *msg, void *arg) {
     if (sinfo[NL80211_STA_INFO_PLINK_STATE])
       plink_state_to_str(e->plink_state,
                          nla_get_u8_safe(sinfo[NL80211_STA_INFO_PLINK_STATE]));
+
+    if (sinfo[NL80211_STA_INFO_TX_DURATION])
+      e->tx_duration = nla_get_u64_safe(sinfo[NL80211_STA_INFO_TX_DURATION]);
+
+    if (sinfo[NL80211_STA_INFO_RX_DURATION])
+      e->rx_duration = nla_get_u64_safe(sinfo[NL80211_STA_INFO_RX_DURATION]);
+
+    if (sinfo[NL80211_STA_INFO_AIRTIME_WEIGHT])
+      e->airtime_weight = nla_get_u16_safe(sinfo[NL80211_STA_INFO_AIRTIME_WEIGHT]);
 
     if (sinfo[NL80211_STA_INFO_LOCAL_PM])
       power_mode_to_str(e->local_ps, sinfo[NL80211_STA_INFO_LOCAL_PM]);
@@ -3450,6 +3462,231 @@ static int nl80211_lookup_phyname(iwinfo_t *iw, const char *section, char *buf) 
   return 0;
 }
 
+static int nl80211_get_station_dump(iwinfo_t *iw, const char *ifname, const uint8_t *mac, struct iwinfo_assoclist_entry *buf) {
+  struct nl80211_msg_conveyor *cv;
+  struct nl80211_array_buf arr = {.buf = (char *)buf, .count = 0, .max_count = 1};
+
+  cv = nl80211_msg(iw, ifname, NL80211_CMD_GET_STATION, 0);
+  if (!cv) return -1;
+
+  NLA_PUT(cv->msg, NL80211_ATTR_MAC, 6, mac);
+
+  if (nl80211_send(iw, nl80211_get_assoclist_cb, &arr))
+    goto nla_put_failure;
+
+  return (arr.count > 0) ? 0 : -1;
+
+nla_put_failure:
+  nl80211_free(cv);
+  return -1;
+}
+
+static int nl80211_get_survey_freq(iwinfo_t *iw, const char *ifname, struct iwinfo_survey_entry *entry) {
+    int freq;
+    if (nl80211_get_frequency(iw, ifname, &freq)) return -1;
+
+    int len = 16384;
+    char *buf = malloc(len);
+    if (!buf) return -ENOMEM;
+
+    if (nl80211_get_survey(iw, ifname, buf, &len)) {
+        free(buf);
+        return -1;
+    }
+
+    struct iwinfo_survey_entry *entries = (struct iwinfo_survey_entry *)buf;
+    int count = len / sizeof(struct iwinfo_survey_entry);
+    int found = 0;
+
+    for (int i=0; i<count; i++) {
+        if (entries[i].mhz == freq) {
+            *entry = entries[i];
+            found = 1;
+            break;
+        }
+    }
+    free(buf);
+    return found ? 0 : -1;
+}
+
+static int nl80211_get_airtime_survey(iwinfo_t *iw, const char *ifname, struct iwinfo_airtime_entry *buf) {
+  struct iwinfo_survey_entry s0, s1;
+
+  if (nl80211_get_survey_freq(iw, ifname, &s0)) return -1;
+  sleep(1);
+  if (nl80211_get_survey_freq(iw, ifname, &s1)) return -1;
+
+  uint64_t da = s1.active_time - s0.active_time;
+  uint64_t db = s1.busy_time - s0.busy_time;
+  uint64_t dt = s1.txtime - s0.txtime;
+  uint64_t dr = s1.rxtime - s0.rxtime;
+  uint64_t dbe = s1.busy_time_ext - s0.busy_time_ext;
+
+  if (da == 0) return -1;
+
+  buf->active = 100;
+  buf->busy = (uint8_t)((db * 100) / da);
+  buf->tx = (uint8_t)((dt * 100) / da);
+  buf->rx = (uint8_t)((dr * 100) / da);
+  buf->other = (uint8_t)((db > dt + dr) ? ((db - dt - dr) * 100) / da : 0);
+  buf->interference = (uint8_t)((dbe > db) ? ((dbe - db) * 100) / da : 0);
+
+  buf->noise = s1.noise;
+
+  return 0;
+}
+
+static int nl80211_get_airtime_station(iwinfo_t *iw, const char *ifname, const uint8_t *mac, char *buf, int *len) {
+  struct iwinfo_survey_entry s0, s1;
+  struct iwinfo_assoclist_entry sta0, sta1;
+  struct iwinfo_airtime_entry *e;
+
+  /* Single station mode */
+  if (mac) {
+    if (*len < sizeof(struct iwinfo_airtime_entry)) return -1;
+    
+    e = (struct iwinfo_airtime_entry *)buf;
+    memset(e, 0, sizeof(*e));
+    memcpy(e->mac, mac, 6);
+
+    if (nl80211_get_survey_freq(iw, ifname, &s0)) return -1;
+    if (nl80211_get_station_dump(iw, ifname, mac, &sta0)) return -1;
+
+    sleep(1);
+
+    if (nl80211_get_survey_freq(iw, ifname, &s1)) return -1;
+    if (nl80211_get_station_dump(iw, ifname, mac, &sta1)) return -1;
+
+    uint64_t da = s1.active_time - s0.active_time; /* ms */
+    uint64_t db = s1.busy_time - s0.busy_time; /* ms */
+    uint64_t dbe = s1.busy_time_ext - s0.busy_time_ext; /* ms */
+    if (da == 0) return -1;
+
+    uint64_t d_sta_tx = sta1.tx_duration - sta0.tx_duration; /* us */
+    uint64_t d_sta_rx = sta1.rx_duration - sta0.rx_duration; /* us */
+    uint64_t d_sta_total = d_sta_tx + d_sta_rx;
+
+    e->active = 100;
+    e->busy = (uint8_t)(d_sta_total / (da * 10));
+    e->tx = (uint8_t)(d_sta_tx / (da * 10));
+    e->rx = (uint8_t)(d_sta_rx / (da * 10));
+    
+    /* Formulas: 
+       other = (busy_time - tx_time - rx_time) / active_time 
+       interference = (busy_time_ext - busy_time) / active_time 
+    */
+    uint64_t sta_tx_ms = d_sta_tx / 1000;
+    uint64_t sta_rx_ms = d_sta_rx / 1000;
+    
+    if (db > sta_tx_ms + sta_rx_ms)
+        e->other = (uint8_t)(((db - sta_tx_ms - sta_rx_ms) * 100) / da);
+    else
+        e->other = 0;
+
+    e->interference = (uint8_t)((dbe > db) ? ((dbe - db) * 100) / da : 0);
+
+    e->noise = s1.noise;
+    e->signal = sta1.signal;
+    e->rx_rate = sta1.rx_rate;
+    e->tx_rate = sta1.tx_rate;
+
+    *len = sizeof(struct iwinfo_airtime_entry);
+    return 0;
+  }
+
+  /* All stations mode */
+  int len0 = IWINFO_BUFSIZE, len1 = IWINFO_BUFSIZE;
+  char *buf0 = malloc(IWINFO_BUFSIZE);
+  char *buf1 = malloc(IWINFO_BUFSIZE);
+  if (!buf0 || !buf1) {
+    free(buf0);
+    free(buf1);
+    return -ENOMEM;
+  }
+
+  if (nl80211_get_survey_freq(iw, ifname, &s0)) goto out_err;
+  if (nl80211_get_assoclist(iw, ifname, buf0, &len0)) goto out_err;
+
+  sleep(1);
+
+  if (nl80211_get_survey_freq(iw, ifname, &s1)) goto out_err;
+  if (nl80211_get_assoclist(iw, ifname, buf1, &len1)) goto out_err;
+
+  uint64_t da = s1.active_time - s0.active_time; /* ms */
+  uint64_t db = s1.busy_time - s0.busy_time; /* ms */
+  uint64_t dbe = s1.busy_time_ext - s0.busy_time_ext; /* ms */
+  if (da == 0) goto out_err;
+
+  struct iwinfo_assoclist_entry *entry0, *entry1;
+  int count0 = len0 / sizeof(struct iwinfo_assoclist_entry);
+  int count1 = len1 / sizeof(struct iwinfo_assoclist_entry);
+  int out_count = 0;
+  int max_out = *len / sizeof(struct iwinfo_airtime_entry);
+  
+  e = (struct iwinfo_airtime_entry *)buf;
+
+  for (int i = 0; i < count1; i++) {
+    if (out_count >= max_out) break;
+    
+    entry1 = &((struct iwinfo_assoclist_entry *)buf1)[i];
+    entry0 = NULL;
+
+    /* Find matching station in T0 */
+    for (int j = 0; j < count0; j++) {
+      if (!memcmp(((struct iwinfo_assoclist_entry *)buf0)[j].mac, entry1->mac, 6)) {
+        entry0 = &((struct iwinfo_assoclist_entry *)buf0)[j];
+        break;
+      }
+    }
+
+    if (entry0) {
+      memset(e, 0, sizeof(*e));
+      memcpy(e->mac, entry1->mac, 6);
+      
+      uint64_t d_sta_tx = entry1->tx_duration - entry0->tx_duration;
+      uint64_t d_sta_rx = entry1->rx_duration - entry0->rx_duration;
+      uint64_t d_sta_total = d_sta_tx + d_sta_rx;
+
+      e->active = 100;
+      e->busy = (uint8_t)(d_sta_total / (da * 10));
+      e->tx = (uint8_t)(d_sta_tx / (da * 10));
+      e->rx = (uint8_t)(d_sta_rx / (da * 10));
+      
+      /* Formulas:
+         other = (busy_time - tx_time - rx_time) / active_time
+         interference = (busy_time_ext - busy_time) / active_time
+      */
+      uint64_t sta_tx_ms = d_sta_tx / 1000;
+      uint64_t sta_rx_ms = d_sta_rx / 1000;
+
+      if (db > sta_tx_ms + sta_rx_ms)
+          e->other = (uint8_t)(((db - sta_tx_ms - sta_rx_ms) * 100) / da);
+      else
+          e->other = 0;
+
+      e->interference = (uint8_t)((dbe > db) ? ((dbe - db) * 100) / da : 0);
+
+      e->noise = s1.noise;
+      e->signal = entry1->signal;
+      e->rx_rate = entry1->rx_rate;
+      e->tx_rate = entry1->tx_rate;
+
+      e++;
+      out_count++;
+    }
+  }
+
+  *len = out_count * sizeof(struct iwinfo_airtime_entry);
+  free(buf0);
+  free(buf1);
+  return 0;
+
+out_err:
+  free(buf0);
+  free(buf1);
+  return -1;
+}
+
 static int nl80211_phy_path(iwinfo_t *iw, const char *phyname, const char **path) {
   if (strchr(phyname, '/'))
     return -1;
@@ -3497,6 +3734,9 @@ const struct iwinfo_ops nl80211_ops = {
     .freqlist = nl80211_get_freqlist,
     .countrylist = nl80211_get_countrylist,
     .survey = nl80211_get_survey,
+    .station_dump = nl80211_get_station_dump,
+    .airtime_survey = nl80211_get_airtime_survey,
+    .airtime_station = nl80211_get_airtime_station,
     .lookup_phy = nl80211_lookup_phyname,
     .phy_path = nl80211_phy_path,
     .close = nl80211_close};
