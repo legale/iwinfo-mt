@@ -644,13 +644,20 @@ static void print_scan2(iwinfo_t *iw, const char *ifname, int duration, int freq
   char buf[IWINFO_BUFSIZE];
   struct iwinfo_scanlist_entry *e;
 
-  if (!iw->iw->scanlist2) {
-    printf("scanlist2 not supported\n\n");
+  if (!iw->iw->scan_trigger || !iw->iw->scan_get) {
+    printf("scan2 not supported\n\n");
     return;
   }
 
-  if (iw->iw->scanlist2(iw, ifname, duration, freq, duration_mandatory, buf, &len)) {
+  /* Trigger scan with parameters */
+  if (iw->iw->scan_trigger(iw, ifname, duration, freq, duration_mandatory)) {
     printf("Scanning not possible\n\n");
+    return;
+  }
+
+  /* Get scan results */
+  if (iw->iw->scan_get(iw, ifname, buf, &len)) {
+    printf("Failed to get scan results\n\n");
     return;
   } else if (len <= 0) {
     printf("No scan results\n\n");
