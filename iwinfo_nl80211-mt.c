@@ -1900,7 +1900,7 @@ static int nl80211_get_survey_cb(struct nl_msg *msg, void *arg) {
   char *e_ptr = (char *)e;
 
   if ((e_ptr + sizeof(*e)) > buf_end) {
-    size_t overflow = (size_t)((e_ptr + sizeof(*e)) - buf_end);
+    size_t overflow __attribute__((unused)) = (size_t)((e_ptr + sizeof(*e)) - buf_end);
     NLA_DBG("%s:%d buffer overflow=%zu risk e=%p end=%p\n",
            __FILE__, __LINE__, overflow, (void *)e, (void *)buf_end);
     return NL_STOP;
