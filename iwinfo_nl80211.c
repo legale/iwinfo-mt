@@ -3660,6 +3660,13 @@ static int nl80211_get_airtime_station(iwinfo_t *iw, const char *ifname, const u
     e->tx_ext_sta = (uint8_t)(is_wide ? (d_sta_tx_ms * 100) / da : 0);
     e->rx_ext_sta = (uint8_t)(is_wide ? (d_sta_rx_ms * 100) / da : 0);
 
+    /* Add other_ext calculations */
+    int temp_other_ext_ap = e->busy_ext - e->interference_ext - e->tx_ext_ap - e->rx_ext_ap;
+    e->other_ext_ap = (temp_other_ext_ap > 0) ? (uint8_t)temp_other_ext_ap : 0;
+
+    int temp_other_ext_sta = e->other_ext_ap - e->tx_ext_sta - e->rx_ext_sta;
+    e->other_ext_sta = (temp_other_ext_sta > 0) ? (uint8_t)temp_other_ext_sta : 0;
+
     e->noise = s1.noise;
     e->signal = sta1.signal;
     e->rx_rate = sta1.rx_rate;
