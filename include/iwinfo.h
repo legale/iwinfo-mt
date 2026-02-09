@@ -272,6 +272,17 @@ struct iwinfo_airtime_entry {
     uint8_t rx;
     uint8_t other;
     uint8_t interference;
+    uint8_t tx_ext;
+    uint8_t rx_ext;
+    uint8_t interference_ext;
+    uint8_t busy_ap;
+    uint8_t tx_ap;
+    uint8_t rx_ap;
+    uint8_t tx_sta;
+    uint8_t rx_sta;
+    uint8_t other_ap;
+    uint8_t other_sta;
+    uint8_t interference_ap;
     int8_t noise;
     int8_t signal;
     struct iwinfo_rate_entry rx_rate;

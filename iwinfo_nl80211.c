@@ -3515,12 +3515,38 @@ static int nl80211_get_survey_freq(iwinfo_t *iw, const char *ifname, struct iwin
     return found ? 0 : -1;
 }
 
+static int nl80211_get_total_sta_durations(iwinfo_t *iw, const char *ifname, uint64_t *tx_us, uint64_t *rx_us) {
+    char buf[IWINFO_BUFSIZE];
+    int len = IWINFO_BUFSIZE;
+    struct iwinfo_assoclist_entry *e;
+    int i;
+
+    *tx_us = 0;
+    *rx_us = 0;
+
+    if (nl80211_get_assoclist(iw, ifname, buf, &len)) return -1;
+
+    for (i = 0; i < len; i += sizeof(struct iwinfo_assoclist_entry)) {
+        e = (struct iwinfo_assoclist_entry *)&buf[i];
+        *tx_us += e->tx_duration;
+        *rx_us += e->rx_duration;
+    }
+
+    return 0;
+}
+
 static int nl80211_get_airtime_survey(iwinfo_t *iw, const char *ifname, struct iwinfo_airtime_entry *buf) {
   struct iwinfo_survey_entry s0, s1;
+  uint64_t sta_tx0, sta_rx0, sta_tx1, sta_rx1;
+  int htmode = IWINFO_HTMODE_NOHT;
 
   if (nl80211_get_survey_freq(iw, ifname, &s0)) return -1;
+  if (nl80211_get_total_sta_durations(iw, ifname, &sta_tx0, &sta_rx0)) return -1;
+
   sleep(1);
+
   if (nl80211_get_survey_freq(iw, ifname, &s1)) return -1;
+  if (nl80211_get_total_sta_durations(iw, ifname, &sta_tx1, &sta_rx1)) return -1;
 
   uint64_t da = s1.active_time - s0.active_time;
   uint64_t db = s1.busy_time - s0.busy_time;
@@ -3530,12 +3556,33 @@ static int nl80211_get_airtime_survey(iwinfo_t *iw, const char *ifname, struct i
 
   if (da == 0) return -1;
 
+  uint64_t total_rx_all_sta_ms = (sta_rx1 - sta_rx0) / 1000;
+
   buf->active = 100;
-  buf->busy = (uint8_t)((db * 100) / da);
-  buf->tx = (uint8_t)((dt * 100) / da);
-  buf->rx = (uint8_t)((dr * 100) / da);
-  buf->other = (uint8_t)((db > dt + dr) ? ((db - dt - dr) * 100) / da : 0);
-  buf->interference = (uint8_t)((dbe > db) ? ((dbe - db) * 100) / da : 0);
+  buf->busy_ap = (uint8_t)((db * 100) / da);
+  buf->tx_ap = (uint8_t)((dt * 100) / da);
+  buf->rx_ap = (uint8_t)((dr * 100) / da);
+
+  // 1. Помехи (не Wi-Fi)
+  buf->interference_ap = (uint8_t)((db > dt + dr) ? ((db - dt - dr) * 100) / da : 0);
+
+  // 2. Чужие сети (Wi-Fi соседей)
+  if (dr > total_rx_all_sta_ms)
+      buf->other_ap = (uint8_t)(((dr - total_rx_all_sta_ms) * 100) / da);
+  else
+      buf->other_ap = 0;
+
+  /* Formula for interference_ext depends on bandwidth */
+  nl80211_get_htmode(iw, ifname, &htmode);
+  bool is_wide = (htmode == IWINFO_HTMODE_HT40 || htmode == IWINFO_HTMODE_VHT40 ||
+                  htmode == IWINFO_HTMODE_VHT80 || htmode == IWINFO_HTMODE_VHT80_80 ||
+                  htmode == IWINFO_HTMODE_VHT160 || htmode == IWINFO_HTMODE_HE40 ||
+                  htmode == IWINFO_HTMODE_HE80 || htmode == IWINFO_HTMODE_HE80_80 ||
+                  htmode == IWINFO_HTMODE_HE160);
+
+  buf->interference_ext = (uint8_t)(is_wide ? (dbe * 100) / da : 0);
+  buf->tx_ext = (uint8_t)(is_wide ? (dt * 100) / da : 0);
+  buf->rx_ext = (uint8_t)(is_wide ? (dr * 100) / da : 0);
 
   buf->noise = s1.noise;
 
@@ -3555,41 +3602,38 @@ static int nl80211_get_airtime_station(iwinfo_t *iw, const char *ifname, const u
     memset(e, 0, sizeof(*e));
     memcpy(e->mac, mac, 6);
 
+    uint64_t sta_tx_all0, sta_rx_all0, sta_tx_all1, sta_rx_all1;
+
     if (nl80211_get_survey_freq(iw, ifname, &s0)) return -1;
     if (nl80211_get_station_dump(iw, ifname, mac, &sta0)) return -1;
+    if (nl80211_get_total_sta_durations(iw, ifname, &sta_tx_all0, &sta_rx_all0)) return -1;
 
     sleep(1);
 
     if (nl80211_get_survey_freq(iw, ifname, &s1)) return -1;
     if (nl80211_get_station_dump(iw, ifname, mac, &sta1)) return -1;
+    if (nl80211_get_total_sta_durations(iw, ifname, &sta_tx_all1, &sta_rx_all1)) return -1;
 
     uint64_t da = s1.active_time - s0.active_time; /* ms */
     uint64_t db = s1.busy_time - s0.busy_time; /* ms */
-    uint64_t dbe = s1.busy_time_ext - s0.busy_time_ext; /* ms */
+    uint64_t dt = s1.txtime - s0.txtime; /* ms */
+    uint64_t dr = s1.rxtime - s0.rxtime; /* ms */
     if (da == 0) return -1;
 
-    uint64_t d_sta_tx = sta1.tx_duration - sta0.tx_duration; /* us */
-    uint64_t d_sta_rx = sta1.rx_duration - sta0.rx_duration; /* us */
-    uint64_t d_sta_total = d_sta_tx + d_sta_rx;
+    uint64_t d_sta_tx_ms = (sta1.tx_duration - sta0.tx_duration) / 1000;
+    uint64_t d_sta_rx_ms = (sta1.rx_duration - sta0.rx_duration) / 1000;
+    uint64_t total_rx_all_sta_ms = (sta_rx_all1 - sta_rx_all0) / 1000;
 
     e->active = 100;
-    e->busy = (uint8_t)(d_sta_total / (da * 10));
-    e->tx = (uint8_t)(d_sta_tx / (da * 10));
-    e->rx = (uint8_t)(d_sta_rx / (da * 10));
-    
-    /* Formulas: 
-       other = (busy_time - tx_time - rx_time) / active_time 
-       interference = (busy_time_ext - busy_time) / active_time 
-    */
-    uint64_t sta_tx_ms = d_sta_tx / 1000;
-    uint64_t sta_rx_ms = d_sta_rx / 1000;
-    
-    if (db > sta_tx_ms + sta_rx_ms)
-        e->other = (uint8_t)(((db - sta_tx_ms - sta_rx_ms) * 100) / da);
-    else
-        e->other = 0;
+    e->busy_ap = (uint8_t)((db * 100) / da);
+    e->tx_ap = (uint8_t)((dt * 100) / da);
+    e->rx_ap = (uint8_t)((dr * 100) / da);
+    e->tx_sta = (uint8_t)((d_sta_tx_ms * 100) / da);
+    e->rx_sta = (uint8_t)((d_sta_rx_ms * 100) / da);
 
-    e->interference = (uint8_t)((dbe > db) ? ((dbe - db) * 100) / da : 0);
+    e->other_ap = dr > total_rx_all_sta_ms ? (uint8_t)(((dr - total_rx_all_sta_ms) * 100) / da) : 0;
+    e->other_sta = dr > d_sta_rx_ms ? (uint8_t)(((dr - d_sta_rx_ms) * 100) / da) : 0;
+    e->interference_ap = (uint8_t)((db > dt + dr) ? ((db - dt - dr) * 100) / da : 0);
 
     e->noise = s1.noise;
     e->signal = sta1.signal;
@@ -3620,12 +3664,27 @@ static int nl80211_get_airtime_station(iwinfo_t *iw, const char *ifname, const u
 
   uint64_t da = s1.active_time - s0.active_time; /* ms */
   uint64_t db = s1.busy_time - s0.busy_time; /* ms */
-  uint64_t dbe = s1.busy_time_ext - s0.busy_time_ext; /* ms */
+  uint64_t dt = s1.txtime - s0.txtime; /* ms */
+  uint64_t dr = s1.rxtime - s0.rxtime; /* ms */
   if (da == 0) goto out_err;
 
+  /* Calculate total RX duration for all stations */
+  uint64_t total_rx_all_sta_us = 0;
   struct iwinfo_assoclist_entry *entry0, *entry1;
   int count0 = len0 / sizeof(struct iwinfo_assoclist_entry);
   int count1 = len1 / sizeof(struct iwinfo_assoclist_entry);
+
+  for (int i = 0; i < count1; i++) {
+    entry1 = &((struct iwinfo_assoclist_entry *)buf1)[i];
+    for (int j = 0; j < count0; j++) {
+      if (!memcmp(((struct iwinfo_assoclist_entry *)buf0)[j].mac, entry1->mac, 6)) {
+        total_rx_all_sta_us += (entry1->rx_duration - ((struct iwinfo_assoclist_entry *)buf0)[j].rx_duration);
+        break;
+      }
+    }
+  }
+  uint64_t total_rx_all_sta_ms = total_rx_all_sta_us / 1000;
+
   int out_count = 0;
   int max_out = *len / sizeof(struct iwinfo_airtime_entry);
   
@@ -3649,28 +3708,19 @@ static int nl80211_get_airtime_station(iwinfo_t *iw, const char *ifname, const u
       memset(e, 0, sizeof(*e));
       memcpy(e->mac, entry1->mac, 6);
       
-      uint64_t d_sta_tx = entry1->tx_duration - entry0->tx_duration;
-      uint64_t d_sta_rx = entry1->rx_duration - entry0->rx_duration;
-      uint64_t d_sta_total = d_sta_tx + d_sta_rx;
+      uint64_t d_sta_tx_ms = (entry1->tx_duration - entry0->tx_duration) / 1000;
+      uint64_t d_sta_rx_ms = (entry1->rx_duration - entry0->rx_duration) / 1000;
 
       e->active = 100;
-      e->busy = (uint8_t)(d_sta_total / (da * 10));
-      e->tx = (uint8_t)(d_sta_tx / (da * 10));
-      e->rx = (uint8_t)(d_sta_rx / (da * 10));
-      
-      /* Formulas:
-         other = (busy_time - tx_time - rx_time) / active_time
-         interference = (busy_time_ext - busy_time) / active_time
-      */
-      uint64_t sta_tx_ms = d_sta_tx / 1000;
-      uint64_t sta_rx_ms = d_sta_rx / 1000;
+      e->busy_ap = (uint8_t)((db * 100) / da);
+      e->tx_ap = (uint8_t)((dt * 100) / da);
+      e->rx_ap = (uint8_t)((dr * 100) / da);
+      e->tx_sta = (uint8_t)((d_sta_tx_ms * 100) / da);
+      e->rx_sta = (uint8_t)((d_sta_rx_ms * 100) / da);
 
-      if (db > sta_tx_ms + sta_rx_ms)
-          e->other = (uint8_t)(((db - sta_tx_ms - sta_rx_ms) * 100) / da);
-      else
-          e->other = 0;
-
-      e->interference = (uint8_t)((dbe > db) ? ((dbe - db) * 100) / da : 0);
+      e->other_ap = dr > total_rx_all_sta_ms ? (uint8_t)(((dr - total_rx_all_sta_ms) * 100) / da) : 0;
+      e->other_sta = dr > d_sta_rx_ms ? (uint8_t)(((dr - d_sta_rx_ms) * 100) / da) : 0;
+      e->interference_ap = (uint8_t)((db > dt + dr) ? ((db - dt - dr) * 100) / da : 0);
 
       e->noise = s1.noise;
       e->signal = entry1->signal;
