@@ -4,39 +4,39 @@ IWINFO_BACKENDS    = $(BACKENDS)
 IWINFO_CFLAGS      = $(CFLAGS) -Wall -std=gnu99 -fstrict-aliasing -Iinclude
 IWINFO_LDFLAGS     = -luci -lubox -lubus
 
-IWINFO_LIB         = libiwinfo.so
+IWINFO_LIB         = libiwinfo-mt.so
 IWINFO_LIB_LDFLAGS = $(LDFLAGS) -shared -Wl,-soname -Wl,$(IWINFO_LIB).$(IWINFO_SOVERSION)
-IWINFO_LIB_OBJ     = iwinfo_utils.o iwinfo_lib.o
+IWINFO_LIB_OBJ     = iwinfo_utils-mt.o iwinfo_lib-mt.o
 
 IWINFO_LUA         = iwinfo.so
-IWINFO_LUA_LDFLAGS = $(LDFLAGS) -shared -L. -liwinfo -llua
-IWINFO_LUA_OBJ     = iwinfo_lua.o
+IWINFO_LUA_LDFLAGS = $	(LDFLAGS) -shared -L. -liwinfo -llua
+IWINFO_LUA_OBJ     = iwinfo_lua-mt.o
 
 IWINFO_CLI         = iwinfo
 IWINFO_CLI_LDFLAGS = $(LDFLAGS) -L. -liwinfo
-IWINFO_CLI_OBJ     = iwinfo_cli.o
+IWINFO_CLI_OBJ     = iwinfo_cli-mt.o
 
 
 ifneq ($(filter wl wext madwifi,$(IWINFO_BACKENDS)),)
 	IWINFO_CFLAGS  += -DUSE_WEXT
-	IWINFO_LIB_OBJ += iwinfo_wext.o iwinfo_wext_scan.o
+	IWINFO_LIB_OBJ += iwinfo_wext-mt.o iwinfo_wext_scan-mt.o
 endif
 
 ifneq ($(filter wl,$(IWINFO_BACKENDS)),)
 	IWINFO_CFLAGS  += -DUSE_WL
-	IWINFO_LIB_OBJ += iwinfo_wl.o
+	IWINFO_LIB_OBJ += iwinfo_wl-mt.o
 endif
 
 ifneq ($(filter madwifi,$(IWINFO_BACKENDS)),)
 	IWINFO_CFLAGS  += -DUSE_MADWIFI
-	IWINFO_LIB_OBJ += iwinfo_madwifi.o
+	IWINFO_LIB_OBJ += iwinfo_madwifi-mt.o
 endif
 
 ifneq ($(filter nl80211,$(IWINFO_BACKENDS)),)
 	IWINFO_CFLAGS      += -DUSE_NL80211
 	IWINFO_CLI_LDFLAGS += -lnl-tiny
 	IWINFO_LIB_LDFLAGS += -lnl-tiny
-	IWINFO_LIB_OBJ     += iwinfo_nl80211.o
+	IWINFO_LIB_OBJ     += iwinfo_nl80211-mt.o
 endif
 
 

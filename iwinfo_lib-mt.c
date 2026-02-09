@@ -16,7 +16,7 @@
  * with the iwinfo library. If not, see http://www.gnu.org/licenses/.
  */
 
-#include "iwinfo.h"
+#include "iwinfo-mt.h"
 
 
 /*

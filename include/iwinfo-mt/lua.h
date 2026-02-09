@@ -23,7 +23,7 @@
 #include <lualib.h>
 #include <lauxlib.h>
 
-#include "iwinfo.h"
+#include "iwinfo-mt.h"
 
 
 #define IWINFO_META			"iwinfo"

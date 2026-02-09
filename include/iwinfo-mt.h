@@ -438,6 +438,6 @@ extern const struct iwinfo_ops madwifi_ops;
 extern const struct iwinfo_ops nl80211_ops;
 extern const struct iwinfo_ops wl_ops;
 
-#include "iwinfo/utils.h"
+#include "iwinfo-mt/utils.h"
 
 #endif

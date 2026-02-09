@@ -20,7 +20,7 @@
  * inspired by the hostapd madwifi driver.
  */
 
-#include "iwinfo/utils.h"
+#include "iwinfo-mt/utils.h"
 
 
 static int ioctl_socket = -1;

@@ -29,7 +29,7 @@
 #include <stdarg.h>
 #include <stdlib.h>
 
-#include "iwinfo_nl80211.h"
+#include "iwinfo_nl80211-mt.h"
 
 #define min(x, y) ((x) < (y)) ? (x) : (y)
 

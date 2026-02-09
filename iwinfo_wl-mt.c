@@ -21,7 +21,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 
-#include "iwinfo.h"
+#include "iwinfo-mt.h"
 #include "api/broadcom.h"
 
 static int wl_ioctl(const char *name, int cmd, void *buf, int len)

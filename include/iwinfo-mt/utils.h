@@ -24,7 +24,7 @@
 #include <uci.h>
 #include <libubus.h>
 
-#include "iwinfo.h"
+#include "iwinfo-mt.h"
 
 #ifndef ARRAY_SIZE
 #define ARRAY_SIZE(arr) (sizeof(arr) / sizeof((arr)[0]))

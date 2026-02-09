@@ -20,7 +20,7 @@
  * inspired by the hostapd madwifi driver.
  */
 
-#include "iwinfo_wext.h"
+#include "iwinfo_wext-mt.h"
 #include "api/madwifi.h"
 
 

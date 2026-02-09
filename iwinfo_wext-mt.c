@@ -19,8 +19,8 @@
  * iwlist.c and iwconfig.c in particular.
  */
 
-#include "iwinfo.h"
-#include "iwinfo_wext.h"
+#include "iwinfo-mt.h"
+#include "iwinfo_wext-mt.h"
 
 static double wext_freq2float(const struct iw_freq *in)
 {

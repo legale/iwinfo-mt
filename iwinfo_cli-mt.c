@@ -19,7 +19,7 @@
 #include <stdio.h>
 #include <glob.h>
 
-#include "iwinfo.h"
+#include "iwinfo-mt.h"
 
 
 static char * format_bssid(unsigned char *mac)

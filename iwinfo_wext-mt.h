@@ -21,8 +21,8 @@
 
 #include <fcntl.h>
 
-#include "iwinfo.h"
-#include "iwinfo/utils.h"
+#include "iwinfo-mt.h"
+#include "iwinfo-mt/utils.h"
 #include "api/wext.h"
 
 

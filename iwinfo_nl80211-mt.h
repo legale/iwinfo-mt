@@ -31,8 +31,8 @@
 #include <netlink/genl/family.h>
 #include <netlink/genl/ctrl.h>
 
-#include "iwinfo.h"
-#include "iwinfo/utils.h"
+#include "iwinfo-mt.h"
+#include "iwinfo-mt/utils.h"
 #include "api/nl80211.h"
 
 struct nl80211_state {
