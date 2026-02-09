@@ -2714,162 +2714,59 @@ static int nl80211_get_scanlist_wpactl(iwinfo_t *iw, const char *ifname, char *b
 }
 
 static int nl80211_get_scanlist2(iwinfo_t *iw, const char *ifname, int duration, int freq, int duration_mandatory, char *buf, int *len) {
-  int sock, qmax, rssi, tries, count = -1, ready = 0;
-  char *pos, *line, *bssid, *freq_str, *signal, *flags, *ssid, reply[4096];
-  char scan_cmd[256];
-  int cmd_len;
-  struct sockaddr_un local = {0};
-  struct iwinfo_scanlist_entry *e = (struct iwinfo_scanlist_entry *)buf;
+  // NLA_DBG("%s %s\n", __func__, ifname);
+  struct nl80211_scanlist sl = {.e = (struct iwinfo_scanlist_entry *)buf};
+  struct nl80211_msg_conveyor *cv;
+  struct nlattr *freqs_nest = NULL;
 
-  sock = nl80211_wpactl_connect(ifname, &local);
+  /* Create TRIGGER_SCAN message with parameters */
+  cv = nl80211_msg(iw, ifname, NL80211_CMD_TRIGGER_SCAN, 0);
+  if (!cv)
+    goto out;
 
-  if (sock < 0)
-    return sock;
-
-  send(sock, "ATTACH", 6, 0);
-
-  /* Build SCAN command with parameters */
-  cmd_len = snprintf(scan_cmd, sizeof(scan_cmd), "SCAN");
-  
+  /* Add frequency attribute if specified */
   if (freq > 0) {
-    cmd_len += snprintf(scan_cmd + cmd_len, sizeof(scan_cmd) - cmd_len, " freq=%d", freq);
+    freqs_nest = nla_nest_start(cv->msg, NL80211_ATTR_SCAN_FREQUENCIES);
+    if (!freqs_nest)
+      goto nla_put_failure;
+    /* Add frequency as u32 value with index 0 in nested attribute */
+    /* In libnl-tiny, nested attributes use sequential indices starting from 0 */
+    NLA_PUT_U32(cv->msg, 0, freq);
+    nla_nest_end(cv->msg, freqs_nest);
   }
-  
+
+  /* Add duration attribute if specified (in TUs, u16) */
   if (duration > 0) {
-    cmd_len += snprintf(scan_cmd + cmd_len, sizeof(scan_cmd) - cmd_len, " duration=%d", duration);
+    NLA_PUT_U16(cv->msg, NL80211_ATTR_MEASUREMENT_DURATION, (uint16_t)duration);
   }
-  
+
+  /* Add duration_mandatory flag if specified */
   if (duration_mandatory) {
-    cmd_len += snprintf(scan_cmd + cmd_len, sizeof(scan_cmd) - cmd_len, " duration_mandatory=1");
+    NLA_PUT_FLAG(cv->msg, NL80211_ATTR_MEASUREMENT_DURATION_MANDATORY);
   }
 
-  send(sock, scan_cmd, cmd_len, 0);
+  /* Send trigger scan request */
+  if (nl80211_send(iw, NULL, NULL))
+    goto out;
 
-  /*
-   * wait for scan results:
-   *   nl80211_wpactl_recv() will use a timeout of 256ms and we need to scan
-   *   72 channels at most. We'll also receive two "OK" messages acknowledging
-   *   the "ATTACH" and "SCAN" commands and the driver might need a bit extra
-   *   time to process the results, so try 72 + 2 + 1 times.
-   */
-  for (tries = 0; tries < 75; tries++) {
-    if (nl80211_wpactl_recv(sock, reply, sizeof(reply)) <= 0)
-      continue;
+  /* Wait for scan to complete */
+  if (nl80211_wait(iw, "nl80211", "scan",
+                   NL80211_CMD_NEW_SCAN_RESULTS, NL80211_CMD_SCAN_ABORTED))
+    goto out;
 
-    /* got an event notification */
-    if (reply[0] == '<') {
-      /* scan results are ready */
-      if (strstr(reply, "CTRL-EVENT-SCAN-RESULTS")) {
-        /* send "SCAN_RESULTS" command */
-        ready = (send(sock, "SCAN_RESULTS", 12, 0) == 12);
-        break;
-      }
+  /* Get scan results */
+  if (nl80211_request(iw, ifname, NL80211_CMD_GET_SCAN, NLM_F_DUMP,
+                      nl80211_get_scanlist_cb, &sl))
+    goto out;
 
-      /* is another unrelated event, retry */
-      tries--;
-    }
+  *len = sl.len * sizeof(struct iwinfo_scanlist_entry);
+  return 0;
 
-    /* scanning already in progress, keep awaiting results */
-    else if (!strcmp(reply, "FAIL-BUSY\n")) {
-      tries--;
-    }
-
-    /* another failure, abort */
-    else if (!strncmp(reply, "FAIL-", 5)) {
-      break;
-    }
-  }
-
-  /* receive and parse scan results if the wait above didn't time out */
-  while (ready && nl80211_wpactl_recv(sock, reply, sizeof(reply)) > 0) {
-    /* received an event notification, receive again */
-    if (reply[0] == '<')
-      continue;
-
-    nl80211_get_quality_max(iw, ifname, &qmax);
-
-    for (line = strtok_r(reply, "\n", &pos);
-         line != NULL;
-         line = strtok_r(NULL, "\n", &pos)) {
-      /* skip header line */
-      if (count < 0) {
-        count++;
-        continue;
-      }
-
-      bssid = strtok(line, "\t");
-      freq_str = strtok(NULL, "\t");
-      signal = strtok(NULL, "\t");
-      flags = strtok(NULL, "\t");
-      ssid = strtok(NULL, "\n");
-
-      if (!bssid || !freq_str || !signal || !flags)
-        continue;
-
-      /* BSSID */
-      e->mac[0] = strtol(&bssid[0], NULL, 16);
-      e->mac[1] = strtol(&bssid[3], NULL, 16);
-      e->mac[2] = strtol(&bssid[6], NULL, 16);
-      e->mac[3] = strtol(&bssid[9], NULL, 16);
-      e->mac[4] = strtol(&bssid[12], NULL, 16);
-      e->mac[5] = strtol(&bssid[15], NULL, 16);
-
-      /* SSID */
-      if (ssid)
-        wpasupp_ssid_decode(ssid, e->ssid, sizeof(e->ssid));
-      else
-        e->ssid[0] = 0;
-
-      /* Mode */
-      if (strstr(flags, "[MESH]"))
-        e->mode = IWINFO_OPMODE_MESHPOINT;
-      else if (strstr(flags, "[IBSS]"))
-        e->mode = IWINFO_OPMODE_ADHOC;
-      else
-        e->mode = IWINFO_OPMODE_MASTER;
-
-      /* Channel */
-      e->mhz = atoi(freq_str);
-      e->band = nl80211_freq2band(e->mhz);
-      e->channel = nl80211_freq2channel(e->mhz);
-
-      /* Signal */
-      rssi = atoi(signal);
-      e->signal = rssi;
-
-      /* Quality */
-      if (rssi < 0) {
-        /* The cfg80211 wext compat layer assumes a signal range
-         * of -110 dBm to -40 dBm, the quality value is derived
-         * by adding 110 to the signal level */
-        if (rssi < -110)
-          rssi = -110;
-        else if (rssi > -40)
-          rssi = -40;
-
-        e->quality = (rssi + 110);
-      } else {
-        e->quality = rssi;
-      }
-
-      /* Max. Quality */
-      e->quality_max = qmax;
-
-      /* Crypto */
-      nl80211_get_scancrypto(flags, &e->crypto);
-
-      count++;
-      e++;
-    }
-
-    *len = count * sizeof(struct iwinfo_scanlist_entry);
-    break;
-  }
-
-  close(sock);
-  unlink(local.sun_path);
-
-  return (count >= 0) ? 0 : -1;
+nla_put_failure:
+  nl80211_free(cv);
+out:
+  *len = 0;
+  return -1;
 }
 
 static int nl80211_get_scanlist(iwinfo_t *iw, const char *ifname, char *buf, int *len) {
