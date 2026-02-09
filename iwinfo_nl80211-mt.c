@@ -3558,8 +3558,7 @@ static int nl80211_get_airtime_survey(iwinfo_t *iw, const char *ifname, struct i
 
   uint64_t total_rx_all_sta_ms = (sta_rx1 - sta_rx0) / 1000;
 
-  buf->active = 100;
-  buf->busy_ap = (uint8_t)((db * 100) / da);
+  buf->busy = (uint8_t)((db * 100) / da);
   buf->busy_ext = (uint8_t)((dbe * 100) / da);
   buf->tx_ap = (uint8_t)((dt * 100) / da);
   buf->rx_ap = (uint8_t)((dr * 100) / da);
@@ -3573,8 +3572,8 @@ static int nl80211_get_airtime_survey(iwinfo_t *iw, const char *ifname, struct i
                   htmode == IWINFO_HTMODE_HE160);
 
   // 1. Помехи (не Wi-Fi)
-  buf->interference_ap = (uint8_t)((db > dt + dr) ? ((db - dt - dr) * 100) / da : 0);
-  buf->interference_ext_ap = is_wide ? (uint8_t)((dbe > dt + dr) ? ((dbe - dt - dr) * 100) / da : 0) : 0;
+  buf->interference = (uint8_t)((db > dt + dr) ? ((db - dt - dr) * 100) / da : 0);
+  buf->interference_ext = is_wide ? (uint8_t)((dbe > dt + dr) ? ((dbe - dt - dr) * 100) / da : 0) : 0;
 
   // 2. Чужие сети (Wi-Fi соседей)
   if (dr > total_rx_all_sta_ms)
@@ -3636,8 +3635,7 @@ static int nl80211_get_airtime_station(iwinfo_t *iw, const char *ifname, const u
                   htmode == IWINFO_HTMODE_HE80 || htmode == IWINFO_HTMODE_HE80_80 ||
                   htmode == IWINFO_HTMODE_HE160);
 
-    e->active = 100;
-    e->busy_ap = (uint8_t)((db * 100) / da);
+    e->busy = (uint8_t)((db * 100) / da);
     e->tx_ap = (uint8_t)((dt * 100) / da);
     e->rx_ap = (uint8_t)((dr * 100) / da);
     e->tx_sta = (uint8_t)((d_sta_tx_ms * 100) / da);
@@ -3645,17 +3643,17 @@ static int nl80211_get_airtime_station(iwinfo_t *iw, const char *ifname, const u
 
     e->other_ap = dr > total_rx_all_sta_ms ? (uint8_t)(((dr - total_rx_all_sta_ms) * 100) / da) : 0;
     e->other_sta = dr > d_sta_rx_ms ? (uint8_t)(((dr - d_sta_rx_ms) * 100) / da) : 0;
-    e->interference_ap = (uint8_t)((db > dt + dr) ? ((db - dt - dr) * 100) / da : 0);
+    e->interference = (uint8_t)((db > dt + dr) ? ((db - dt - dr) * 100) / da : 0);
 
     e->busy_ext = (uint8_t)((dbe * 100) / da);
     e->tx_ext_ap = (uint8_t)(is_wide ? (dt * 100) / da : 0);
     e->rx_ext_ap = (uint8_t)(is_wide ? (dr * 100) / da : 0);
-    e->interference_ext_ap = 0;
+    e->interference_ext = 0;
     if (is_wide) {
         uint64_t our_traffic = dt + dr;
         // Если вторичный канал занят дольше, чем мы передавали/принимали
         if (dbe > our_traffic) {
-            e->interference_ext_ap = (uint8_t)(((dbe - our_traffic) * 100) / da);
+            e->interference_ext = (uint8_t)(((dbe - our_traffic) * 100) / da);
         }
     }
 
@@ -3741,8 +3739,7 @@ static int nl80211_get_airtime_station(iwinfo_t *iw, const char *ifname, const u
       uint64_t d_sta_tx_ms = (entry1->tx_duration - entry0->tx_duration) / 1000;
       uint64_t d_sta_rx_ms = (entry1->rx_duration - entry0->rx_duration) / 1000;
 
-      e->active = 100;
-      e->busy_ap = (uint8_t)((db * 100) / da);
+      e->busy = (uint8_t)((db * 100) / da);
       e->tx_ap = (uint8_t)((dt * 100) / da);
       e->rx_ap = (uint8_t)((dr * 100) / da);
       e->tx_sta = (uint8_t)((d_sta_tx_ms * 100) / da);
@@ -3750,12 +3747,12 @@ static int nl80211_get_airtime_station(iwinfo_t *iw, const char *ifname, const u
 
       e->other_ap = dr > total_rx_all_sta_ms ? (uint8_t)(((dr - total_rx_all_sta_ms) * 100) / da) : 0;
       e->other_sta = dr > d_sta_rx_ms ? (uint8_t)(((dr - d_sta_rx_ms) * 100) / da) : 0;
-      e->interference_ap = (uint8_t)((db > dt + dr) ? ((db - dt - dr) * 100) / da : 0);
+      e->interference = (uint8_t)((db > dt + dr) ? ((db - dt - dr) * 100) / da : 0);
 
       e->busy_ext = (uint8_t)((dbe * 100) / da);
       e->tx_ext_ap = (uint8_t)(is_wide ? (dt * 100) / da : 0);
       e->rx_ext_ap = (uint8_t)(is_wide ? (dr * 100) / da : 0);
-      e->interference_ext_ap = is_wide ? (uint8_t)((dbe > dt + dr) ? ((dbe - dt - dr) * 100) / da : 0) : 0;
+      e->interference_ext = is_wide ? (uint8_t)((dbe > dt + dr) ? ((dbe - dt - dr) * 100) / da : 0) : 0;
 
       e->tx_ext_sta = (uint8_t)(is_wide ? (d_sta_tx_ms * 100) / da : 0);
       e->rx_ext_sta = (uint8_t)(is_wide ? (d_sta_rx_ms * 100) / da : 0);
