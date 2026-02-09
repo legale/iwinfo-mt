@@ -266,27 +266,29 @@ struct iwinfo_survey_entry {
 
 struct iwinfo_airtime_entry {
     uint8_t mac[6];
-    uint8_t active;
+
+    /* Global / Channel */
     uint8_t busy;
     uint8_t busy_ext;
-    uint8_t tx;
-    uint8_t rx;
-    uint8_t other;
     uint8_t interference;
-    uint8_t tx_ext_ap;
-    uint8_t rx_ext_ap;
-    uint8_t interference_ext_ap;
-    uint8_t busy_ap;
+    uint8_t interference_ext;
+    int8_t noise;
+
+    /* AP */
     uint8_t tx_ap;
     uint8_t rx_ap;
+    uint8_t tx_ext_ap;
+    uint8_t rx_ext_ap;
+    uint8_t other_ap;
+
+    /* Station */
     uint8_t tx_sta;
     uint8_t rx_sta;
     uint8_t tx_ext_sta;
     uint8_t rx_ext_sta;
-    uint8_t other_ap;
     uint8_t other_sta;
-    uint8_t interference_ap;
-    int8_t noise;
+
+    /* Info */
     int8_t signal;
     struct iwinfo_rate_entry rx_rate;
     struct iwinfo_rate_entry tx_rate;

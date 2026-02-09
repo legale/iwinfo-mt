@@ -853,15 +853,15 @@ static void print_airtime_survey(iwinfo_t *iw, const char *ifname) {
   }
 
   printf("Airtime Survey:\n");
-  printf("  Busy_ap:   %u%%\n", e.busy_ap);
+  printf("  Busy:      %u%%\n", e.busy);
   printf("  Busy_ext:  %u%%\n", e.busy_ext);
   printf("  TX_ap:     %u%%\n", e.tx_ap);
   printf("  RX_ap:     %u%%\n", e.rx_ap);
   printf("  Other_ap:  %u%%\n", e.other_ap);
-  printf("  Interf_ap: %u%%\n", e.interference_ap);
+  printf("  Interf:    %u%%\n", e.interference);
   printf("  TX_ext:    %u%%\n", e.tx_ext_ap);
   printf("  RX_ext:    %u%%\n", e.rx_ext_ap);
-  printf("  Interf_ext:%u%%\n", e.interference_ext_ap);
+  printf("  Interf_ext:%u%%\n", e.interference_ext);
   printf("  Noise:     %s\n", format_noise(e.noise));
 }
 
@@ -905,7 +905,7 @@ static void print_airtime_station(iwinfo_t *iw, const char *ifname, const char *
   for (i = 0; i < len; i += sizeof(struct iwinfo_airtime_entry)) {
       e = (struct iwinfo_airtime_entry *)&buf[i];
       printf("Station %s Airtime:\n", format_bssid(e->mac));
-      printf("  Busy_ap:   %u%%\n", e->busy_ap);
+      printf("  Busy:      %u%%\n", e->busy);
       printf("  Busy_ext:  %u%%\n", e->busy_ext);
       printf("  TX_ap:     %u%%\n", e->tx_ap);
       printf("  TX_ext_ap: %u%%\n", e->tx_ext_ap);
@@ -917,8 +917,8 @@ static void print_airtime_station(iwinfo_t *iw, const char *ifname, const char *
       printf("  RX_ext_sta:%u%%\n", e->rx_ext_sta);
       printf("  Other_ap:  %u%%\n", e->other_ap);
       printf("  Other_sta: %u%%\n", e->other_sta);
-      printf("  Interf_ap: %u%%\n", e->interference_ap);
-      printf("  Interf_ext:%u%%\n", e->interference_ext_ap);
+      printf("  Interf:    %u%%\n", e->interference);
+      printf("  Interf_ext:%u%%\n", e->interference_ext);
       printf("  Signal:    %s / %s (SNR %d)\n",
              format_signal(e->signal),
              format_noise(e->noise),
