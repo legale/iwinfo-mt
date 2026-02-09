@@ -342,15 +342,15 @@ static struct nl80211_msg_conveyor *nl80211_msg(iwinfo_t *iw, const char *ifname
   struct nl80211_msg_conveyor *cv = &iw->state.cv;
   ifidx = if_nametoindex(ifname);
   /* Valid ifidx must be > 0 */
-  if (ifidx == 0){
+  if (ifidx == 0) {
     phyidx = nl80211_phy_idx_from_phy(ifname);
-    if(phyidx < 0) return NULL; /* phyidx must be >= 0 */
+    if (phyidx < 0) return NULL; /* phyidx must be >= 0 */
   }
 
   cv = nl80211_new(iw, iw->state.nl80211, cmd, flags);
   if (!cv) return NULL;
 
-  if(ifidx){
+  if (ifidx) {
     NLA_PUT_U32(cv->msg, NL80211_ATTR_IFINDEX, ifidx);
   } else {
     NLA_PUT_U32(cv->msg, NL80211_ATTR_WIPHY, phyidx);
@@ -369,7 +369,6 @@ static int nl80211_send(iwinfo_t *iw, int (*cb_func)(struct nl_msg *, void *), v
   int err;
   struct nl80211_msg_conveyor *cv = &iw->state.cv;
   struct nl80211_msg_conveyor rcv = {0};
-
 
   if (cb_func) {
     nl_cb_set(cv->cb, NL_CB_VALID, NL_CB_CUSTOM, cb_func, cb_arg);
@@ -471,7 +470,7 @@ static int nl80211_subscribe_cb(struct nl_msg *msg, void *arg) {
 }
 
 static int nl80211_subscribe(iwinfo_t *iw, const char *family, const char *group) {
-  if(iw == NULL) return -ENOMEM;
+  if (iw == NULL) return -ENOMEM;
   struct nl80211_group_conveyor cv = {.name = group, .id = -ENOENT};
   struct nl80211_msg_conveyor *req;
   int err;
@@ -635,7 +634,6 @@ static char *nl80211_phyidx2name(iwinfo_t *iw, char *phy, unsigned int idx) {
   // clear phy first byte
   phy[0] = '\0';
 
-
   cv = nl80211_new(iw, iw->state.nl80211, NL80211_CMD_GET_WIPHY, 0);
   if (!cv) return NULL;
 
@@ -651,7 +649,7 @@ nla_put_failure:
 }
 
 static char *nl80211_phy2ifname(iwinfo_t *iw, char *ifname, const char *phy) {
-  if(iw == NULL) return NULL;
+  if (iw == NULL) return NULL;
   int ifidx = -1, cifidx, lmode = 1, clmode, phyidx;
   char buffer[512];
   DIR *d;
@@ -1110,64 +1108,64 @@ static int nl80211_get_ssid_bssid_cb(struct nl_msg *msg, void *arg) {
   }
 }
 
-static char* get_parent_ifname(const char *ifname) {
-    char *dot = strchr(ifname, '.');
-    if (!dot)
-        return NULL;
-    
-    static char parent[IFNAMSIZ];
-    size_t len = dot - ifname;
-    if (len >= IFNAMSIZ)
-        return NULL;
-    
-    strncpy(parent, ifname, len);
-    parent[len] = '\0';
-    return parent;
+static char *get_parent_ifname(const char *ifname) {
+  char *dot = strchr(ifname, '.');
+  if (!dot)
+    return NULL;
+
+  static char parent[IFNAMSIZ];
+  size_t len = dot - ifname;
+  if (len >= IFNAMSIZ)
+    return NULL;
+
+  strncpy(parent, ifname, len);
+  parent[len] = '\0';
+  return parent;
 }
 
 static int nl80211_get_ssid(iwinfo_t *iw, const char *ifname, char *buf) {
-    char *res;
-    char resbuf[IFNAMSIZ];
-    resbuf[0] = '\0';
-    struct nl80211_ssid_bssid sb = {.ssid = (unsigned char *)buf};
-    
-    /* try to find ssid from scan dump results */
-    res = nl80211_phy2ifname(iw, resbuf, ifname);
-    sb.ssid[0] = 0;
-    
-    nl80211_request(iw, res ? res : ifname, NL80211_CMD_GET_SCAN, NLM_F_DUMP,
-                    nl80211_get_ssid_bssid_cb, &sb);
-    
-    /* If SSID not found and interface name contains .<vlan_id>, try parent interface */
-    if (sb.ssid[0] == 0) {
-        char *parent_if = get_parent_ifname(ifname);
-        if (parent_if) {
-            nl80211_request(iw, parent_if, NL80211_CMD_GET_SCAN, NLM_F_DUMP,
-                           nl80211_get_ssid_bssid_cb, &sb);
-        }
+  char *res;
+  char resbuf[IFNAMSIZ];
+  resbuf[0] = '\0';
+  struct nl80211_ssid_bssid sb = {.ssid = (unsigned char *)buf};
+
+  /* try to find ssid from scan dump results */
+  res = nl80211_phy2ifname(iw, resbuf, ifname);
+  sb.ssid[0] = 0;
+
+  nl80211_request(iw, res ? res : ifname, NL80211_CMD_GET_SCAN, NLM_F_DUMP,
+                  nl80211_get_ssid_bssid_cb, &sb);
+
+  /* If SSID not found and interface name contains .<vlan_id>, try parent interface */
+  if (sb.ssid[0] == 0) {
+    char *parent_if = get_parent_ifname(ifname);
+    if (parent_if) {
+      nl80211_request(iw, parent_if, NL80211_CMD_GET_SCAN, NLM_F_DUMP,
+                      nl80211_get_ssid_bssid_cb, &sb);
     }
-    
-    /* failed, try to find from hostapd info */
+  }
+
+  /* failed, try to find from hostapd info */
+  if (sb.ssid[0] == 0) {
+    nl80211_hostapd_query(iw, ifname, "ssid", sb.ssid,
+                          IWINFO_ESSID_MAX_SIZE + 1);
+
+    /* If still no SSID and we have VLAN, try parent interface with hostapd */
     if (sb.ssid[0] == 0) {
-        nl80211_hostapd_query(iw, ifname, "ssid", sb.ssid,
-                             IWINFO_ESSID_MAX_SIZE + 1);
-        
-        /* If still no SSID and we have VLAN, try parent interface with hostapd */
-        if (sb.ssid[0] == 0) {
-            char *parent_if = get_parent_ifname(ifname);
-            if (parent_if) {
-                nl80211_hostapd_query(iw, parent_if, "ssid", sb.ssid,
-                                    IWINFO_ESSID_MAX_SIZE + 1);
-            }
-        }
+      char *parent_if = get_parent_ifname(ifname);
+      if (parent_if) {
+        nl80211_hostapd_query(iw, parent_if, "ssid", sb.ssid,
+                              IWINFO_ESSID_MAX_SIZE + 1);
+      }
     }
-    
-    /* failed, try to obtain Mesh ID */
-    if (sb.ssid[0] == 0)
-        iwinfo_ubus_query(res ? res : ifname, "mesh_id",
-                         buf, IWINFO_ESSID_MAX_SIZE + 1);
-    
-    return (sb.ssid[0] == 0) ? -1 : 0;
+  }
+
+  /* failed, try to obtain Mesh ID */
+  if (sb.ssid[0] == 0)
+    iwinfo_ubus_query(res ? res : ifname, "mesh_id",
+                      buf, IWINFO_ESSID_MAX_SIZE + 1);
+
+  return (sb.ssid[0] == 0) ? -1 : 0;
 }
 
 static int nl80211_get_bssid(iwinfo_t *iw, const char *ifname, char *buf) {
@@ -1880,6 +1878,11 @@ static int nl80211_get_survey_cb(struct nl_msg *msg, void *arg) {
       [NL80211_SURVEY_INFO_TIME_TX] = {.type = NLA_U64},
   };
 
+  // Проверяем границы буфера
+  if (arr->count >= arr->max_count) {
+    return NL_STOP; // останавливаем обработку
+  }
+
   rc = nla_parse_nested(sinfo, NL80211_SURVEY_INFO_MAX,
                         attr[NL80211_ATTR_SURVEY_INFO],
                         survey_policy);
@@ -2126,7 +2129,12 @@ static int nl80211_get_assoclist_cb(struct nl_msg *msg, void *arg) {
 }
 
 static int nl80211_get_survey(iwinfo_t *iw, const char *ifname, char *buf, int *len) {
-  struct nl80211_array_buf arr = {.buf = buf, .count = 0};
+  if (!len || *len == 0) return EINVAL;
+  struct nl80211_array_buf arr = {
+      .buf = buf,
+      .count = 0,
+      .max_count = *len / sizeof(struct iwinfo_assoclist_entry),
+  };
   int rc;
 
   rc = nl80211_request(iw, ifname, NL80211_CMD_GET_SURVEY,
@@ -2973,19 +2981,19 @@ static int nl80211_get_modelist_cb(struct nl_msg *msg, void *arg) {
 static int nl80211_get_hwmodelist(iwinfo_t *iw, const char *ifname, int *buf) {
   // printf("%s\n", __func__);
   struct nl80211_msg_conveyor *cv = &iw->state.cv;
-  struct nl80211_modes m = { 0 };
+  struct nl80211_modes m = {0};
   uint32_t features = nl80211_get_protocol_features(iw, ifname);
   int flags;
 
   flags = features & NL80211_PROTOCOL_FEATURE_SPLIT_WIPHY_DUMP ? NLM_F_DUMP : 0;
   cv = nl80211_msg(iw, ifname, NL80211_CMD_GET_WIPHY, flags);
-  if (!cv){
+  if (!cv) {
     // printf("%s nl80211_msg\n", __func__);
     goto out;
   }
 
   NLA_PUT_FLAG(cv->msg, NL80211_ATTR_SPLIT_WIPHY_DUMP);
-  if (nl80211_send(iw, nl80211_get_modelist_cb, &m)){
+  if (nl80211_send(iw, nl80211_get_modelist_cb, &m)) {
     // printf("%s nl80211_send\n", __func__);
     goto nla_put_failure;
   }
@@ -3092,7 +3100,7 @@ static int nl80211_get_htmode(iwinfo_t *iw, const char *ifname, int *buf) {
 }
 
 static int nl80211_get_htmodelist(iwinfo_t *iw, const char *ifname, int *buf) {
-  if(iw == NULL) return -1;
+  if (iw == NULL) return -1;
   struct nl80211_msg_conveyor *cv = &iw->state.cv;
   struct nl80211_modes m = {};
   uint32_t features = nl80211_get_protocol_features(iw, ifname);
