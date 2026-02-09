@@ -390,7 +390,7 @@ const char *iwinfo_type() {
 }
 
 iwinfo_t *iwinfo_init() {
-  iwinfo_ops_t *iw = backends[0];
+  const iwinfo_ops_t *iw = backends[0];
   iwinfo_t *container = calloc(1, sizeof(iwinfo_t));
   if (iw->init(container) == NULL) {
     free(container);
