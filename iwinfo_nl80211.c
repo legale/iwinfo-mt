@@ -689,7 +689,7 @@ static char *nl80211_phy2ifname(iwinfo_t *iw, char *ifname, const char *phy) {
       if ((ifidx < 0) || (cifidx < ifidx) || ((lmode == 1) && (clmode != 1))) {
         ifidx = cifidx;
         lmode = clmode;
-        strncpy(ifname, e->d_name, sizeof(ifname) - 1);
+        strncpy(ifname, e->d_name, IFNAMSIZ - 1);
       }
     }
 
