@@ -3681,13 +3681,17 @@ static int nl80211_get_airtime_station(iwinfo_t *iw, const char *ifname, const u
     return -ENOMEM;
   }
 
+  uint64_t sta_tx_all0, sta_rx_all0, sta_tx_all1, sta_rx_all1;
+
   if (nl80211_get_survey_freq(iw, ifname, &s0)) goto out_err;
   if (nl80211_get_assoclist(iw, ifname, buf0, &len0)) goto out_err;
+  if (nl80211_get_total_sta_durations(iw, ifname, &sta_tx_all0, &sta_rx_all0)) goto out_err;
 
   sleep(1);
 
   if (nl80211_get_survey_freq(iw, ifname, &s1)) goto out_err;
   if (nl80211_get_assoclist(iw, ifname, buf1, &len1)) goto out_err;
+  if (nl80211_get_total_sta_durations(iw, ifname, &sta_tx_all1, &sta_rx_all1)) goto out_err;
 
   uint64_t da = s1.active_time - s0.active_time; /* ms */
   uint64_t db = s1.busy_time - s0.busy_time; /* ms */
@@ -3698,21 +3702,7 @@ static int nl80211_get_airtime_station(iwinfo_t *iw, const char *ifname, const u
   if (da == 0) goto out_err;
 
   /* Calculate total RX duration for all stations */
-  uint64_t total_rx_all_sta_us = 0;
-  struct iwinfo_assoclist_entry *entry0, *entry1;
-  int count0 = len0 / sizeof(struct iwinfo_assoclist_entry);
-  int count1 = len1 / sizeof(struct iwinfo_assoclist_entry);
-
-  for (int i = 0; i < count1; i++) {
-    entry1 = &((struct iwinfo_assoclist_entry *)buf1)[i];
-    for (int j = 0; j < count0; j++) {
-      if (!memcmp(((struct iwinfo_assoclist_entry *)buf0)[j].mac, entry1->mac, 6)) {
-        total_rx_all_sta_us += (entry1->rx_duration - ((struct iwinfo_assoclist_entry *)buf0)[j].rx_duration);
-        break;
-      }
-    }
-  }
-  uint64_t total_rx_all_sta_ms = total_rx_all_sta_us / 1000;
+  uint64_t total_rx_all_sta_ms = (sta_rx_all1 - sta_rx_all0) / 1000;
 
   /* Formula for interference_ext depends on bandwidth */
   nl80211_get_htmode(iw, ifname, &htmode);
@@ -3726,6 +3716,9 @@ static int nl80211_get_airtime_station(iwinfo_t *iw, const char *ifname, const u
   int max_out = *len / sizeof(struct iwinfo_airtime_entry);
   
   e = (struct iwinfo_airtime_entry *)buf;
+  int count0 = len0 / sizeof(struct iwinfo_assoclist_entry);
+  int count1 = len1 / sizeof(struct iwinfo_assoclist_entry);
+  struct iwinfo_assoclist_entry *entry0, *entry1;
 
   for (int i = 0; i < count1; i++) {
     if (out_count >= max_out) break;
