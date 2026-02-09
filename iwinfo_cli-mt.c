@@ -639,6 +639,65 @@ static void print_scanlist(iwinfo_t *iw, const char *ifname) {
   }
 }
 
+static void print_scan2(iwinfo_t *iw, const char *ifname, int duration, int freq, int duration_mandatory) {
+  int i, x, len;
+  char buf[IWINFO_BUFSIZE];
+  struct iwinfo_scanlist_entry *e;
+
+  if (!iw->iw->scanlist2) {
+    printf("scanlist2 not supported\n\n");
+    return;
+  }
+
+  if (iw->iw->scanlist2(iw, ifname, duration, freq, duration_mandatory, buf, &len)) {
+    printf("Scanning not possible\n\n");
+    return;
+  } else if (len <= 0) {
+    printf("No scan results\n\n");
+    return;
+  }
+
+  for (i = 0, x = 1; i < len; i += sizeof(struct iwinfo_scanlist_entry), x++) {
+    e = (struct iwinfo_scanlist_entry *)&buf[i];
+
+    printf("Cell %02d - Address: %s\n",
+           x,
+           format_bssid(e->mac));
+    printf("          ESSID: %s\n",
+           format_ssid(e->ssid));
+    printf("          Mode: %s  Frequency: %s  Band: %s  Channel: %s\n",
+           IWINFO_OPMODE_NAMES[e->mode],
+           format_frequency(e->mhz),
+           format_band(e->band),
+           format_channel(e->channel));
+    printf("          Signal: %s  Quality: %s/%s\n",
+           format_signal(e->signal - 0x100),
+           format_quality(e->quality),
+           format_quality_max(e->quality_max));
+    printf("          Encryption: %s\n",
+           format_encryption(&e->crypto));
+    printf("          HT Operation:\n");
+    printf("                    Primary Channel: %d\n",
+           e->ht_chan_info.primary_chan);
+    printf("                    Secondary Channel Offset: %s\n",
+           ht_secondary_offset[e->ht_chan_info.secondary_chan_off]);
+    printf("                    Channel Width: %s\n",
+           format_chan_width(false, e->ht_chan_info.chan_width));
+
+    if (e->vht_chan_info.center_chan_1) {
+      printf("          VHT Operation:\n");
+      printf("                    Center Frequency 1: %d\n",
+             e->vht_chan_info.center_chan_1);
+      printf("                    Center Frequency 2: %d\n",
+             e->vht_chan_info.center_chan_2);
+      printf("                    Channel Width: %s\n",
+             format_chan_width(true, e->vht_chan_info.chan_width));
+    }
+
+    printf("\n");
+  }
+}
+
 static void print_txpwrlist(iwinfo_t *iw, const char *ifname) {
   int len, pwr, off, i;
   char buf[IWINFO_BUFSIZE];
@@ -819,6 +878,7 @@ int main(int argc, char **argv) {
             "Usage:\n"
             "	iwinfo <device> info\n"
             "	iwinfo <device> scan\n"
+            "	iwinfo <device> scan2 <freq> <duration> <duration_mandatory>\n"
             "	iwinfo <device> txpowerlist\n"
             "	iwinfo <device> freqlist\n"
             "	iwinfo <device> assoclist\n"
@@ -856,6 +916,18 @@ int main(int argc, char **argv) {
       if (!strcmp(argv[2], "path")) {
         lookup_path(iw, argv[3]);
         return 0;
+      }
+      if (!strcmp(argv[2], "scan2")) {
+        if (argc != 6) {
+          fprintf(stderr, "Usage: iwinfo <device> scan2 <freq> <duration> <duration_mandatory>\n");
+          rv = 1;
+        } else {
+          int freq = atoi(argv[3]);
+          int duration = atoi(argv[4]);
+          int duration_mandatory = atoi(argv[5]);
+          print_scan2(iw, argv[1], duration, freq, duration_mandatory);
+        }
+        return rv;
       }
       switch (argv[2][0]) {
       case 'p':

@@ -399,6 +399,7 @@ typedef struct iwinfo_ops {
   int (*assoclist)(iwinfo_t *iw, const char *, char *, int *);
   int (*txpwrlist)(iwinfo_t *iw, const char *, char *, int *);
   int (*scanlist)(iwinfo_t *iw, const char *, char *, int *);
+  int (*scanlist2)(iwinfo_t *iw, const char *, int duration, int freq, int duration_mandatory, char *, int *);
   int (*freqlist)(iwinfo_t *iw, const char *, char *, int *);
   int (*countrylist)(iwinfo_t *iw, const char *, char *, int *);
   int (*survey)(iwinfo_t *iw, const char *, char *, int *);
