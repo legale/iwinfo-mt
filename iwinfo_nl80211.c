@@ -2713,9 +2713,8 @@ static int nl80211_get_scanlist_wpactl(iwinfo_t *iw, const char *ifname, char *b
   return (count >= 0) ? 0 : -1;
 }
 
-static int nl80211_get_scanlist2(iwinfo_t *iw, const char *ifname, int duration, int freq, int duration_mandatory, char *buf, int *len) {
+static int nl80211_scan_trigger(iwinfo_t *iw, const char *ifname, int duration, int freq, int duration_mandatory) {
   // NLA_DBG("%s %s\n", __func__, ifname);
-  struct nl80211_scanlist sl = {.e = (struct iwinfo_scanlist_entry *)buf};
   struct nl80211_msg_conveyor *cv;
   struct nlattr *freqs_nest = NULL;
 
@@ -2754,7 +2753,18 @@ static int nl80211_get_scanlist2(iwinfo_t *iw, const char *ifname, int duration,
                    NL80211_CMD_NEW_SCAN_RESULTS, NL80211_CMD_SCAN_ABORTED))
     goto out;
 
-  /* Get scan results */
+  return 0;
+
+nla_put_failure:
+  nl80211_free(cv);
+out:
+  return -1;
+}
+
+static int nl80211_scan_get(iwinfo_t *iw, const char *ifname, char *buf, int *len) {
+  // NLA_DBG("%s %s\n", __func__, ifname);
+  struct nl80211_scanlist sl = {.e = (struct iwinfo_scanlist_entry *)buf};
+
   if (nl80211_request(iw, ifname, NL80211_CMD_GET_SCAN, NLM_F_DUMP,
                       nl80211_get_scanlist_cb, &sl))
     goto out;
@@ -2762,8 +2772,24 @@ static int nl80211_get_scanlist2(iwinfo_t *iw, const char *ifname, int duration,
   *len = sl.len * sizeof(struct iwinfo_scanlist_entry);
   return 0;
 
-nla_put_failure:
-  nl80211_free(cv);
+out:
+  *len = 0;
+  return -1;
+}
+
+static int nl80211_get_scanlist2(iwinfo_t *iw, const char *ifname, int duration, int freq, int duration_mandatory, char *buf, int *len) {
+  // NLA_DBG("%s %s\n", __func__, ifname);
+
+  /* Trigger scan with parameters */
+  if (nl80211_scan_trigger(iw, ifname, duration, freq, duration_mandatory))
+    goto out;
+
+  /* Get scan results */
+  if (nl80211_scan_get(iw, ifname, buf, len))
+    goto out;
+
+  return 0;
+
 out:
   *len = 0;
   return -1;
@@ -3466,7 +3492,8 @@ const struct iwinfo_ops nl80211_ops = {
     .assoclist = nl80211_get_assoclist,
     .txpwrlist = nl80211_get_txpwrlist,
     .scanlist = nl80211_get_scanlist,
-    .scanlist2 = nl80211_get_scanlist2,
+    .scan_trigger = nl80211_scan_trigger,
+    .scan_get = nl80211_scan_get,
     .freqlist = nl80211_get_freqlist,
     .countrylist = nl80211_get_countrylist,
     .survey = nl80211_get_survey,
