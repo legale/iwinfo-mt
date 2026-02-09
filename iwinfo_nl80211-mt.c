@@ -1138,7 +1138,7 @@ static int nl80211_get_ssid(iwinfo_t *iw, const char *ifname, char *buf) {
     nl80211_request(iw, res ? res : ifname, NL80211_CMD_GET_SCAN, NLM_F_DUMP,
                     nl80211_get_ssid_bssid_cb, &sb);
     
-    /* If SSID not found and interface name contains dot (VLAN), try parent interface */
+    /* If SSID not found and interface name contains .<vlan_id>, try parent interface */
     if (sb.ssid[0] == 0) {
         char *parent_if = get_parent_ifname(ifname);
         if (parent_if) {
