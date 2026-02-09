@@ -1862,12 +1862,62 @@ static void nl80211_parse_rateinfo(struct nlattr **ri,
 }
 
 static int nl80211_get_survey_cb(struct nl_msg *msg, void *arg) {
-  struct nl80211_array_buf *arr = arg;
-  struct iwinfo_survey_entry *e = arr->buf;
-  struct nlattr **attr = nl80211_parse(msg);
-  struct nlattr *sinfo[NL80211_SURVEY_INFO_MAX + 1];
-  int rc;
+  printf("%s:%d %s\n", __FILE__, __LINE__, __func__);
 
+  if (!arg) {
+    printf("%s:%d arg=NULL\n", __FILE__, __LINE__);
+    return NL_STOP;
+  }
+
+  struct nl80211_array_buf *arr = (struct nl80211_array_buf *)arg;
+
+  if (!arr->buf) {
+    printf("%s:%d arr->buf=NULL\n", __FILE__, __LINE__);
+    return NL_STOP;
+  }
+
+  if (arr->max_count == 0) {
+    printf("%s:%d arr->max_count==0\n", __FILE__, __LINE__);
+    return NL_STOP;
+  }
+
+  if (arr->count >= arr->max_count) {
+    printf("%s:%d arr->count >= arr->max_count\n", __FILE__, __LINE__);
+    return NL_STOP;
+  }
+
+  // prevent size_t overflow
+  if ((SIZE_MAX / sizeof(struct iwinfo_survey_entry)) < arr->max_count) {
+    printf("%s:%d size overflow risk\n", __FILE__, __LINE__);
+    return NL_STOP;
+  }
+
+  struct iwinfo_survey_entry *buf = arr->buf;
+  char *buf_start = (char *)buf;
+  char *buf_end = buf_start + (arr->max_count * sizeof(*buf));
+  struct iwinfo_survey_entry *e = &buf[arr->count];
+  char *e_ptr = (char *)e;
+
+  if ((e_ptr + sizeof(*e)) > buf_end) {
+    size_t overflow = (size_t)((e_ptr + sizeof(*e)) - buf_end);
+    printf("%s:%d buffer overflow=%zu risk e=%p end=%p\n",
+           __FILE__, __LINE__, overflow, (void *)e, (void *)buf_end);
+    return NL_STOP;
+  }
+
+  struct nlattr **attr = nl80211_parse(msg);
+  printf("%s:%d after parse\n", __FILE__, __LINE__);
+  if (!attr) {
+    printf("%s:%d attr=NULL\n", __FILE__, __LINE__);
+    return NL_SKIP;
+  }
+
+  if (!attr[NL80211_ATTR_SURVEY_INFO]) {
+    printf("%s:%d attr[NL80211_ATTR_SURVEY_INFO]=NULL\n", __FILE__, __LINE__);
+    return NL_SKIP;
+  }
+
+  struct nlattr *sinfo[NL80211_SURVEY_INFO_MAX + 1];
   static struct nla_policy survey_policy[NL80211_SURVEY_INFO_MAX + 1] = {
       [NL80211_SURVEY_INFO_FREQUENCY] = {.type = NLA_U32},
       [NL80211_SURVEY_INFO_NOISE] = {.type = NLA_U8},
@@ -1878,43 +1928,40 @@ static int nl80211_get_survey_cb(struct nl_msg *msg, void *arg) {
       [NL80211_SURVEY_INFO_TIME_TX] = {.type = NLA_U64},
   };
 
-  // Проверяем границы буфера
-  if (arr->count >= arr->max_count) {
-    return NL_STOP; // останавливаем обработку
-  }
-
-  rc = nla_parse_nested(sinfo, NL80211_SURVEY_INFO_MAX,
-                        attr[NL80211_ATTR_SURVEY_INFO],
-                        survey_policy);
+  int rc = nla_parse_nested(sinfo, NL80211_SURVEY_INFO_MAX,
+                            attr[NL80211_ATTR_SURVEY_INFO],
+                            survey_policy);
+  printf("%s:%d after nla_parse_nested rc=%d\n", __FILE__, __LINE__, rc);
   if (rc)
     return NL_SKIP;
 
-  /* advance to end of array */
-  e += arr->count;
   memset(e, 0, sizeof(*e));
+  printf("%s:%d memset done\n", __FILE__, __LINE__);
 
-  if (sinfo[NL80211_SURVEY_INFO_FREQUENCY])
-    e->mhz = nla_get_u32(sinfo[NL80211_SURVEY_INFO_FREQUENCY]);
+  if (sinfo[NL80211_SURVEY_INFO_FREQUENCY]) e->mhz = nla_get_u32(sinfo[NL80211_SURVEY_INFO_FREQUENCY]);
+  printf("NL80211_SURVEY_INFO_FREQUENCY ");
 
-  if (sinfo[NL80211_SURVEY_INFO_NOISE])
-    e->noise = nla_get_u8(sinfo[NL80211_SURVEY_INFO_NOISE]);
+  if (sinfo[NL80211_SURVEY_INFO_NOISE]) e->noise = nla_get_u8(sinfo[NL80211_SURVEY_INFO_NOISE]);
+  printf("NL80211_SURVEY_INFO_NOISE ");
 
-  if (sinfo[NL80211_SURVEY_INFO_TIME])
-    e->active_time = nla_get_u64(sinfo[NL80211_SURVEY_INFO_TIME]);
+  if (sinfo[NL80211_SURVEY_INFO_TIME]) e->active_time = nla_get_u64(sinfo[NL80211_SURVEY_INFO_TIME]);
+  printf("NL80211_SURVEY_INFO_TIME ");
 
-  if (sinfo[NL80211_SURVEY_INFO_TIME_BUSY])
-    e->busy_time = nla_get_u64(sinfo[NL80211_SURVEY_INFO_TIME_BUSY]);
+  if (sinfo[NL80211_SURVEY_INFO_TIME_BUSY]) e->busy_time = nla_get_u64(sinfo[NL80211_SURVEY_INFO_TIME_BUSY]);
+  printf("NL80211_SURVEY_INFO_TIME_BUSY ");
 
-  if (sinfo[NL80211_SURVEY_INFO_TIME_EXT_BUSY])
-    e->busy_time_ext = nla_get_u64(sinfo[NL80211_SURVEY_INFO_TIME_EXT_BUSY]);
+  if (sinfo[NL80211_SURVEY_INFO_TIME_EXT_BUSY]) e->busy_time_ext = nla_get_u64(sinfo[NL80211_SURVEY_INFO_TIME_EXT_BUSY]);
+  printf("NL80211_SURVEY_INFO_TIME_EXT_BUSY ");
 
-  if (sinfo[NL80211_SURVEY_INFO_TIME_RX])
-    e->rxtime = nla_get_u64(sinfo[NL80211_SURVEY_INFO_TIME_RX]);
+  if (sinfo[NL80211_SURVEY_INFO_TIME_RX]) e->rxtime = nla_get_u64(sinfo[NL80211_SURVEY_INFO_TIME_RX]);
+  printf("NL80211_SURVEY_INFO_TIME_RX ");
 
-  if (sinfo[NL80211_SURVEY_INFO_TIME_TX])
-    e->txtime = nla_get_u64(sinfo[NL80211_SURVEY_INFO_TIME_TX]);
+  if (sinfo[NL80211_SURVEY_INFO_TIME_TX]) e->txtime = nla_get_u64(sinfo[NL80211_SURVEY_INFO_TIME_TX]);
+  printf("NL80211_SURVEY_INFO_TIME_TX ");
 
+  printf("\n");
   arr->count++;
+  printf("%s:%d count++=%d\n", __FILE__, __LINE__, arr->count);
   return NL_SKIP;
 }
 
@@ -2130,8 +2177,7 @@ static int nl80211_get_assoclist_cb(struct nl_msg *msg, void *arg) {
 
 static int nl80211_get_survey(iwinfo_t *iw, const char *ifname, char *buf, int *len)
 {
-  if (!len || *len == 0)
-    return EINVAL;
+  if (!len || *len == 0) return EINVAL;
 
   struct nl80211_array_buf arr = {
     .buf = buf,
@@ -2139,8 +2185,7 @@ static int nl80211_get_survey(iwinfo_t *iw, const char *ifname, char *buf, int *
     .max_count = *len / sizeof(struct iwinfo_survey_entry),
   };
 
-  printf("survey: request on %s, max=%d entries\n",
-         ifname, arr.max_count);
+  printf("survey: request on %s, entry=%d max=%d entries\n", ifname, arr.count, arr.max_count);
 
   int rc = nl80211_request(iw, ifname, NL80211_CMD_GET_SURVEY,
                            NLM_F_DUMP, nl80211_get_survey_cb, &arr);
