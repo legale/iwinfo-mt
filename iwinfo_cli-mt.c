@@ -314,16 +314,16 @@ static const char *format_chan_width(bool vht, uint8_t width) {
   return "unknown";
 }
 
-static const char *print_type(nl80211_state_t *s, const struct iwinfo_ops *iw, const char *ifname) {
+static const char *print_type(iwinfo_t *iw, const char *ifname) {
   const char *type = iwinfo_type();
   return type ? type : "unknown";
 }
 
-static char *print_hardware_id(nl80211_state_t *s, const struct iwinfo_ops *iw, const char *ifname) {
+static char *print_hardware_id(iwinfo_t *iw, const char *ifname) {
   static char buf[20];
   struct iwinfo_hardware_id ids;
 
-  if (!iw->hardware_id(s, ifname, (char *)&ids)) {
+  if (!iw->iw->hardware_id(iw, ifname, (char *)&ids)) {
     if (strlen(ids.compatible) > 0)
       snprintf(buf, sizeof(buf), "embedded");
     else if (ids.vendor_id == 0 && ids.device_id == 0 &&
@@ -341,20 +341,20 @@ static char *print_hardware_id(nl80211_state_t *s, const struct iwinfo_ops *iw, 
   return buf;
 }
 
-static char *print_hardware_name(nl80211_state_t *s, const struct iwinfo_ops *iw, const char *ifname) {
+static char *print_hardware_name(iwinfo_t *iw, const char *ifname) {
   static char buf[128];
 
-  if (iw->hardware_name(s, ifname, buf))
+  if (iw->iw->hardware_name(iw, ifname, buf))
     snprintf(buf, sizeof(buf), "unknown");
 
   return buf;
 }
 
-static char *print_txpower_offset(nl80211_state_t *s, const struct iwinfo_ops *iw, const char *ifname) {
+static char *print_txpower_offset(iwinfo_t *iw, const char *ifname) {
   int off;
   static char buf[12];
 
-  if (iw->txpower_offset(s, ifname, &off))
+  if (iw->iw->txpower_offset(iw, ifname, &off))
     snprintf(buf, sizeof(buf), "unknown");
   else if (off != 0)
     snprintf(buf, sizeof(buf), "%d dB", off);
@@ -364,11 +364,11 @@ static char *print_txpower_offset(nl80211_state_t *s, const struct iwinfo_ops *i
   return buf;
 }
 
-static char *print_frequency_offset(nl80211_state_t *s, const struct iwinfo_ops *iw, const char *ifname) {
+static char *print_frequency_offset(iwinfo_t *iw, const char *ifname) {
   int off;
   static char buf[12];
 
-  if (iw->frequency_offset(s, ifname, &off))
+  if (iw->iw->frequency_offset(iw, ifname, &off))
     snprintf(buf, sizeof(buf), "unknown");
   else if (off != 0)
     snprintf(buf, sizeof(buf), "%.3f GHz", ((float)off / 1000.0));
@@ -378,29 +378,29 @@ static char *print_frequency_offset(nl80211_state_t *s, const struct iwinfo_ops 
   return buf;
 }
 
-static char *print_ssid(nl80211_state_t *s, const struct iwinfo_ops *iw, const char *ifname) {
+static char *print_ssid(iwinfo_t *iw, const char *ifname) {
   char buf[IWINFO_ESSID_MAX_SIZE + 1] = {0};
 
-  if (iw->ssid(s, ifname, buf))
+  if (iw->iw->ssid(iw, ifname, buf))
     memset(buf, 0, sizeof(buf));
 
   return format_ssid(buf);
 }
 
-static char *print_bssid(nl80211_state_t *s, const struct iwinfo_ops *iw, const char *ifname) {
+static char *print_bssid(iwinfo_t *iw, const char *ifname) {
   static char buf[18] = {0};
 
-  if (iw->bssid(s, ifname, buf))
+  if (iw->iw->bssid(iw, ifname, buf))
     snprintf(buf, sizeof(buf), "00:00:00:00:00:00");
 
   return buf;
 }
 
-static char *print_mode(nl80211_state_t *s, const struct iwinfo_ops *iw, const char *ifname) {
+static char *print_mode(iwinfo_t *iw, const char *ifname) {
   int mode;
   static char buf[128];
 
-  if (iw->mode(s, ifname, &mode))
+  if (iw->iw->mode(iw, ifname, &mode))
     mode = IWINFO_OPMODE_UNKNOWN;
 
   snprintf(buf, sizeof(buf), "%s", IWINFO_OPMODE_NAMES[mode]);
@@ -408,44 +408,44 @@ static char *print_mode(nl80211_state_t *s, const struct iwinfo_ops *iw, const c
   return buf;
 }
 
-static char *print_channel(nl80211_state_t *s, const struct iwinfo_ops *iw, const char *ifname) {
+static char *print_channel(iwinfo_t *iw, const char *ifname) {
   int ch;
-  if (iw->channel(s, ifname, &ch))
+  if (iw->iw->channel(iw, ifname, &ch))
     ch = -1;
 
   return format_channel(ch);
 }
 
-static char *print_center_chan1(nl80211_state_t *s, const struct iwinfo_ops *iw, const char *ifname) {
+static char *print_center_chan1(iwinfo_t *iw, const char *ifname) {
   int ch;
-  if (iw->center_chan1(s, ifname, &ch))
+  if (iw->iw->center_chan1(iw, ifname, &ch))
     ch = -1;
 
   return format_channel(ch);
 }
 
-static char *print_center_chan2(nl80211_state_t *s, const struct iwinfo_ops *iw, const char *ifname) {
+static char *print_center_chan2(iwinfo_t *iw, const char *ifname) {
   int ch;
-  if (iw->center_chan2(s, ifname, &ch))
+  if (iw->iw->center_chan2(iw, ifname, &ch))
     ch = -1;
 
   return format_channel(ch);
 }
 
-static char *print_frequency(nl80211_state_t *s, const struct iwinfo_ops *iw, const char *ifname) {
+static char *print_frequency(iwinfo_t *iw, const char *ifname) {
   int freq;
-  if (iw->frequency(s, ifname, &freq))
+  if (iw->iw->frequency(iw, ifname, &freq))
     freq = -1;
 
   return format_frequency(freq);
 }
 
-static char *print_txpower(nl80211_state_t *s, const struct iwinfo_ops *iw, const char *ifname) {
+static char *print_txpower(iwinfo_t *iw, const char *ifname) {
   int pwr, off;
-  if (iw->txpower_offset(s, ifname, &off))
+  if (iw->iw->txpower_offset(iw, ifname, &off))
     off = 0;
 
-  if (iw->txpower(s, ifname, &pwr))
+  if (iw->iw->txpower(iw, ifname, &pwr))
     pwr = -1;
   else
     pwr += off;
@@ -453,66 +453,66 @@ static char *print_txpower(nl80211_state_t *s, const struct iwinfo_ops *iw, cons
   return format_txpower(pwr);
 }
 
-static char *print_quality(nl80211_state_t *s, const struct iwinfo_ops *iw, const char *ifname) {
+static char *print_quality(iwinfo_t *iw, const char *ifname) {
   int qual;
-  if (iw->quality(s, ifname, &qual))
+  if (iw->iw->quality(iw, ifname, &qual))
     qual = -1;
 
   return format_quality(qual);
 }
 
-static char *print_quality_max(nl80211_state_t *s, const struct iwinfo_ops *iw, const char *ifname) {
+static char *print_quality_max(iwinfo_t *iw, const char *ifname) {
   int qmax;
-  if (iw->quality_max(s, ifname, &qmax))
+  if (iw->iw->quality_max(iw, ifname, &qmax))
     qmax = -1;
 
   return format_quality_max(qmax);
 }
 
-static char *print_signal(nl80211_state_t *s, const struct iwinfo_ops *iw, const char *ifname) {
+static char *print_signal(iwinfo_t *iw, const char *ifname) {
   int sig;
-  if (iw->signal(s, ifname, &sig))
+  if (iw->iw->signal(iw, ifname, &sig))
     sig = 0;
 
   return format_signal(sig);
 }
 
-static char *print_noise(nl80211_state_t *s, const struct iwinfo_ops *iw, const char *ifname) {
+static char *print_noise(iwinfo_t *iw, const char *ifname) {
   int noise;
-  if (iw->noise(s, ifname, &noise))
+  if (iw->iw->noise(iw, ifname, &noise))
     noise = 0;
 
   return format_noise(noise);
 }
 
-static char *print_rate(nl80211_state_t *s, const struct iwinfo_ops *iw, const char *ifname) {
+static char *print_rate(iwinfo_t *iw, const char *ifname) {
   int rate;
-  if (iw->bitrate(s, ifname, &rate))
+  if (iw->iw->bitrate(iw, ifname, &rate))
     rate = -1;
 
   return format_rate(rate);
 }
 
-static char *print_encryption(nl80211_state_t *s, const struct iwinfo_ops *iw, const char *ifname) {
+static char *print_encryption(iwinfo_t *iw, const char *ifname) {
   struct iwinfo_crypto_entry c = {0};
-  if (iw->encryption(s, ifname, (char *)&c))
+  if (iw->iw->encryption(iw, ifname, (char *)&c))
     return format_encryption(NULL);
 
   return format_encryption(&c);
 }
 
-static char *print_hwmodes(nl80211_state_t *s, const struct iwinfo_ops *iw, const char *ifname) {
+static char *print_hwmodes(iwinfo_t *iw, const char *ifname) {
   int modes;
-  if (iw->hwmodelist(s, ifname, &modes))
+  if (iw->iw->hwmodelist(iw, ifname, &modes))
     modes = -1;
 
   return format_hwmodes(modes);
 }
 
-static const char *print_htmode(nl80211_state_t *s, const struct iwinfo_ops *iw, const char *ifname) {
+static const char *print_htmode(iwinfo_t *iw, const char *ifname) {
   int mode;
   const char *name;
-  if (iw->htmode(s, ifname, &mode))
+  if (iw->iw->htmode(iw, ifname, &mode))
     mode = -1;
 
   name = iwinfo_htmode_name(mode);
@@ -522,11 +522,11 @@ static const char *print_htmode(nl80211_state_t *s, const struct iwinfo_ops *iw,
   return "unknown";
 }
 
-static char *print_mbssid_supp(nl80211_state_t *s, const struct iwinfo_ops *iw, const char *ifname) {
+static char *print_mbssid_supp(iwinfo_t *iw, const char *ifname) {
   int supp;
   static char buf[4];
 
-  if (iw->mbssid_support(s, ifname, &supp))
+  if (iw->iw->mbssid_support(iw, ifname, &supp))
     snprintf(buf, sizeof(buf), "no");
   else
     snprintf(buf, sizeof(buf), "%s", supp ? "yes" : "no");
@@ -534,63 +534,63 @@ static char *print_mbssid_supp(nl80211_state_t *s, const struct iwinfo_ops *iw, 
   return buf;
 }
 
-static char *print_phyname(nl80211_state_t *s, const struct iwinfo_ops *iw, const char *ifname) {
+static char *print_phyname(iwinfo_t *iw, const char *ifname) {
   static char buf[32];
 
-  if (!iw->phyname(s, ifname, buf))
+  if (!iw->iw->phyname(iw, ifname, buf))
     return buf;
 
   return "?";
 }
 
-static void print_info(nl80211_state_t *s, const struct iwinfo_ops *iw, const char *ifname) {
+static void print_info(iwinfo_t *iw, const char *ifname) {
   printf("%-9s ESSID: %s\n",
          ifname,
-         print_ssid(s, iw, ifname));
+         print_ssid(iw, ifname));
   printf("          Access Point: %s\n",
-         print_bssid(s, iw, ifname));
+         print_bssid(iw, ifname));
   printf("          Mode: %s  Channel: %s (%s)  HT Mode: %s\n",
-         print_mode(s, iw, ifname),
-         print_channel(s, iw, ifname),
-         print_frequency(s, iw, ifname),
-         print_htmode(s, iw, ifname));
-  if (iw->center_chan1 != NULL) {
+         print_mode(iw, ifname),
+         print_channel(iw, ifname),
+         print_frequency(iw, ifname),
+         print_htmode(iw, ifname));
+  if (iw->iw->center_chan1 != NULL) {
     printf("          Center Channel 1: %s",
-           print_center_chan1(s, iw, ifname));
-    printf(" 2: %s\n", print_center_chan2(s, iw, ifname));
+           print_center_chan1(iw, ifname));
+    printf(" 2: %s\n", print_center_chan2(iw, ifname));
   }
   printf("          Tx-Power: %s  Link Quality: %s/%s\n",
-         print_txpower(s, iw, ifname),
-         print_quality(s, iw, ifname),
-         print_quality_max(s, iw, ifname));
+         print_txpower(iw, ifname),
+         print_quality(iw, ifname),
+         print_quality_max(iw, ifname));
   printf("          Signal: %s  Noise: %s\n",
-         print_signal(s, iw, ifname),
-         print_noise(s, iw, ifname));
+         print_signal(iw, ifname),
+         print_noise(iw, ifname));
   printf("          Bit Rate: %s\n",
-         print_rate(s, iw, ifname));
+         print_rate(iw, ifname));
   printf("          Encryption: %s\n",
-         print_encryption(s, iw, ifname));
+         print_encryption(iw, ifname));
   printf("          Type: %s  HW Mode(s): %s\n",
-         print_type(s, iw, ifname),
-         print_hwmodes(s, iw, ifname));
+         print_type(iw, ifname),
+         print_hwmodes(iw, ifname));
   printf("          Hardware: %s [%s]\n",
-         print_hardware_id(s, iw, ifname),
-         print_hardware_name(s, iw, ifname));
+         print_hardware_id(iw, ifname),
+         print_hardware_name(iw, ifname));
   printf("          TX power offset: %s\n",
-         print_txpower_offset(s, iw, ifname));
+         print_txpower_offset(iw, ifname));
   printf("          Frequency offset: %s\n",
-         print_frequency_offset(s, iw, ifname));
+         print_frequency_offset(iw, ifname));
   printf("          Supports VAPs: %s  PHY name: %s\n",
-         print_mbssid_supp(s, iw, ifname),
-         print_phyname(s, iw, ifname));
+         print_mbssid_supp(iw, ifname),
+         print_phyname(iw, ifname));
 }
 
-static void print_scanlist(nl80211_state_t *s, const struct iwinfo_ops *iw, const char *ifname) {
+static void print_scanlist(iwinfo_t *iw, const char *ifname) {
   int i, x, len;
   char buf[IWINFO_BUFSIZE];
   struct iwinfo_scanlist_entry *e;
 
-  if (iw->scanlist(s, ifname, buf, &len)) {
+  if (iw->iw->scanlist(iw, ifname, buf, &len)) {
     printf("Scanning not possible\n\n");
     return;
   } else if (len <= 0) {
@@ -639,20 +639,20 @@ static void print_scanlist(nl80211_state_t *s, const struct iwinfo_ops *iw, cons
   }
 }
 
-static void print_txpwrlist(nl80211_state_t *s, const struct iwinfo_ops *iw, const char *ifname) {
+static void print_txpwrlist(iwinfo_t *iw, const char *ifname) {
   int len, pwr, off, i;
   char buf[IWINFO_BUFSIZE];
   struct iwinfo_txpwrlist_entry *e;
 
-  if (iw->txpwrlist(s, ifname, buf, &len) || len <= 0) {
+  if (iw->iw->txpwrlist(iw, ifname, buf, &len) || len <= 0) {
     printf("No TX power information available\n");
     return;
   }
 
-  if (iw->txpower(s, ifname, &pwr))
+  if (iw->iw->txpower(iw, ifname, &pwr))
     pwr = -1;
 
-  if (iw->txpower_offset(s, ifname, &off))
+  if (iw->iw->txpower_offset(iw, ifname, &off))
     off = 0;
 
   for (i = 0; i < len; i += sizeof(struct iwinfo_txpwrlist_entry)) {
@@ -665,17 +665,17 @@ static void print_txpwrlist(nl80211_state_t *s, const struct iwinfo_ops *iw, con
   }
 }
 
-static void print_freqlist(nl80211_state_t *s, const struct iwinfo_ops *iw, const char *ifname) {
+static void print_freqlist(iwinfo_t *iw, const char *ifname) {
   int i, len, freq;
   char buf[IWINFO_BUFSIZE];
   struct iwinfo_freqlist_entry *e;
 
-  if (iw->freqlist(s, ifname, buf, &len) || len <= 0) {
+  if (iw->iw->freqlist(iw, ifname, buf, &len) || len <= 0) {
     printf("No frequency information available\n");
     return;
   }
 
-  if (iw->frequency(s, ifname, &freq))
+  if (iw->iw->frequency(iw, ifname, &freq))
     freq = -1;
 
   for (i = 0; i < len; i += sizeof(struct iwinfo_freqlist_entry)) {
@@ -690,12 +690,12 @@ static void print_freqlist(nl80211_state_t *s, const struct iwinfo_ops *iw, cons
   }
 }
 
-static void print_assoclist(nl80211_state_t *s, const struct iwinfo_ops *iw, const char *ifname) {
+static void print_assoclist(iwinfo_t *iw, const char *ifname) {
   int i, len;
   char buf[IWINFO_BUFSIZE];
   struct iwinfo_assoclist_entry *e;
 
-  if (iw->assoclist(s, ifname, buf, &len)) {
+  if (iw->iw->assoclist(iw, ifname, buf, &len)) {
     printf("No information available\n");
     return;
   } else if (len <= 0) {
@@ -740,19 +740,19 @@ static char *lookup_country(char *buf, int len, int iso3166) {
   return NULL;
 }
 
-static void print_countrylist(nl80211_state_t *s, const struct iwinfo_ops *iw, const char *ifname) {
+static void print_countrylist(iwinfo_t *iw, const char *ifname) {
   int len;
   char buf[IWINFO_BUFSIZE];
   char *ccode;
   char curcode[3];
   const struct iwinfo_iso3166_label *l;
 
-  if (iw->countrylist(s, ifname, buf, &len)) {
+  if (iw->iw->countrylist(iw, ifname, buf, &len)) {
     printf("No country code information available\n");
     return;
   }
 
-  if (iw->country(s, ifname, curcode))
+  if (iw->iw->country(iw, ifname, curcode))
     memset(curcode, 0, sizeof(curcode));
 
   for (l = IWINFO_ISO3166_NAMES; l->iso3166; l++) {
@@ -764,10 +764,10 @@ static void print_countrylist(nl80211_state_t *s, const struct iwinfo_ops *iw, c
   }
 }
 
-static void print_htmodelist(nl80211_state_t *s, const struct iwinfo_ops *iw, const char *ifname) {
+static void print_htmodelist(iwinfo_t *iw, const char *ifname) {
   int i, htmodes = 0;
 
-  if (iw->htmodelist(s, ifname, &htmodes)) {
+  if (iw->iw->htmodelist(iw, ifname, &htmodes)) {
     printf("No HT mode information available\n");
     return;
   }
@@ -779,15 +779,15 @@ static void print_htmodelist(nl80211_state_t *s, const struct iwinfo_ops *iw, co
   printf("\n");
 }
 
-static void lookup_phy(nl80211_state_t *s, const struct iwinfo_ops *iw, const char *section) {
+static void lookup_phy(iwinfo_t *iw, const char *section) {
   char buf[IWINFO_BUFSIZE];
 
-  if (!iw->lookup_phy) {
+  if (!iw->iw->lookup_phy) {
     fprintf(stderr, "Not supported\n");
     return;
   }
 
-  if (iw->lookup_phy(s, section, buf)) {
+  if (iw->iw->lookup_phy(iw, section, buf)) {
     fprintf(stderr, "Phy not found\n");
     return;
   }
@@ -795,10 +795,10 @@ static void lookup_phy(nl80211_state_t *s, const struct iwinfo_ops *iw, const ch
   printf("%s\n", buf);
 }
 
-static void lookup_path(nl80211_state_t *s, const struct iwinfo_ops *iw, const char *phy) {
+static void lookup_path(iwinfo_t *iw, const char *phy) {
   const char *path;
 
-  if (!iw->phy_path || iw->phy_path(s, phy, &path) || !path)
+  if (!iw->iw->phy_path || iw->iw->phy_path(iw, phy, &path) || !path)
     return;
 
   printf("%s\n", path);
@@ -807,8 +807,11 @@ static void lookup_path(nl80211_state_t *s, const struct iwinfo_ops *iw, const c
 int main(int argc, char **argv) {
   int i, rv = 0;
   char *p;
-  const struct iwinfo_ops *iw;
-  nl80211_state_t *s;
+  iwinfo_t *iw = iwinfo_init();
+  if(iw == NULL){
+    fprintf(stderr, "failed iwinfo_init\n");
+    return 1;
+  }
   glob_t globbuf;
 
   if (argc > 1 && argc < 3) {
@@ -832,40 +835,31 @@ int main(int argc, char **argv) {
     for (i = 0; i < globbuf.gl_pathc; i++) {
       p = strrchr(globbuf.gl_pathv[i], '/');
 
-      if (!p)
-        continue;
+      if (!p) continue;
+      if (!iw->iw->probe(iw, ++p)) continue;
 
-      iw = iwinfo_backend(++p);
-      s = iw->init();
-
-      if (!s)
-        continue;
-
-      if(!iw->probe(s, p)) continue;
-
-      print_info(s, iw, p);
+      print_info(iw, p);
       printf("\n");
     }
 
     globfree(&globbuf);
+    iwinfo_deinit(iw);
     return 0;
   }
 
   if (argc > 3) {
-    iw = iwinfo_backend_by_name();
-    s = iw->init();
 
-    if (!s) {
+    if (!iw->iw->probe(iw, argv[1])) {
       fprintf(stderr, "failed to init wireless backend: %s\n", argv[1]);
       rv = 1;
     } else {
       if (!strcmp(argv[2], "path")) {
-        lookup_path(s, iw, argv[3]);
+        lookup_path(iw, argv[3]);
         return 0;
       }
       switch (argv[2][0]) {
       case 'p':
-        lookup_phy(s, iw, argv[3]);
+        lookup_phy(iw, argv[3]);
         break;
 
       default:
@@ -874,41 +868,40 @@ int main(int argc, char **argv) {
       }
     }
   } else {
-    iw = iwinfo_backend();
-    s = iw->init();
 
-    if (!s) {
+
+    if (!iw->iw->probe(iw, argv[1])) {
       fprintf(stderr, "No such wireless device: %s\n", argv[1]);
       rv = 1;
     } else {
       for (i = 2; i < argc; i++) {
         switch (argv[i][0]) {
         case 'i':
-          print_info(s, iw, argv[1]);
+          print_info(iw, argv[1]);
           break;
 
         case 's':
-          print_scanlist(s, iw, argv[1]);
+          print_scanlist(iw, argv[1]);
           break;
 
         case 't':
-          print_txpwrlist(s, iw, argv[1]);
+          print_txpwrlist(iw, argv[1]);
           break;
 
         case 'f':
-          print_freqlist(s, iw, argv[1]);
+          print_freqlist(iw, argv[1]);
           break;
 
         case 'a':
-          print_assoclist(s, iw, argv[1]);
+          print_assoclist(iw, argv[1]);
           break;
 
         case 'c':
-          print_countrylist(s, iw, argv[1]);
+          print_countrylist(iw, argv[1]);
           break;
 
         case 'h':
-          print_htmodelist(s, iw, argv[1]);
+          print_htmodelist(iw, argv[1]);
           break;
 
         default:
@@ -919,7 +912,7 @@ int main(int argc, char **argv) {
     }
   }
 
-  iwinfo_deinit(s);
+  iwinfo_deinit(iw);
 
   return rv;
 }

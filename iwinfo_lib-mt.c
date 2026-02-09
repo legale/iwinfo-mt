@@ -379,29 +379,29 @@ const struct iwinfo_iso3166_label IWINFO_ISO3166_NAMES[] = {
     {0x5A57 /* ZW */, "Zimbabwe"},
     {0, ""}};
 
-static const struct iwinfo_ops *backends[] = {
+static const iwinfo_ops_t *backends[] = {
 #ifdef USE_NL80211
     &nl80211_ops,
 #endif
 };
 
 const char *iwinfo_type() {
-  const struct iwinfo_ops *ops = iwinfo_backend();
-  if (!ops)
+  return backends[0]->name;
+}
+
+iwinfo_t *iwinfo_init() {
+  iwinfo_ops_t *iw = backends[0];
+  iwinfo_t *container = calloc(1, sizeof(iwinfo_t));
+  if(iw->init(container) == NULL){
+    free(container);
     return NULL;
-
-  return ops->name;
+  }
+  container->iw = iw;
+  return container;
 }
 
-const struct iwinfo_ops *iwinfo_backend() {
-  return backends[0];
-}
-
-const struct iwinfo_ops *iwinfo_backend_by_name() {
-  return backends[0];
-}
-
-void iwinfo_deinit(nl80211_state_t *s) {
-  backends[0]->close(s);
+void iwinfo_deinit(iwinfo_t *container) {
+  container->iw->close(&container->state);
+  free(container);
   iwinfo_close();
 }

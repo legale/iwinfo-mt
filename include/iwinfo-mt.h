@@ -19,8 +19,6 @@
 #include <sys/ioctl.h>
 #include <sys/mman.h>
 
-#include "../iwinfo_nl80211-mt.h"
-
 #define IWINFO_BUFSIZE 24 * 1024
 #define IWINFO_ESSID_MAX_SIZE 32
 
@@ -356,49 +354,67 @@ extern const struct iwinfo_iso3166_label IWINFO_ISO3166_NAMES[];
 
 #define IWINFO_HARDWARE_FILE "/usr/share/libiwinfo-mt/devices.txt"
 
-struct iwinfo_ops {
+struct nl80211_msg_conveyor {
+  struct nl_msg *msg;
+  struct nl_cb *cb;
+};
+
+typedef struct nl80211_state {
+  struct nl_sock *nl_sock;
+  struct nl_cache *nl_cache;
+  struct genl_family *nl80211;
+  struct genl_family *nlctrl;
+  struct nl80211_msg_conveyor cv;
+} nl80211_state_t;
+
+typedef struct iwinfo iwinfo_t;
+typedef struct iwinfo_ops {
   const char *name;
   nl80211_state_t *(*init)();
-  int (*probe)(nl80211_state_t *s, const char *ifname);
-  int (*mode)(nl80211_state_t *s, const char *, int *);
-  int (*channel)(nl80211_state_t *s, const char *, int *);
-  int (*center_chan1)(nl80211_state_t *s, const char *, int *);
-  int (*center_chan2)(nl80211_state_t *s, const char *, int *);
-  int (*frequency)(nl80211_state_t *s, const char *, int *);
-  int (*frequency_offset)(nl80211_state_t *s, const char *, int *);
-  int (*txpower)(nl80211_state_t *s, const char *, int *);
-  int (*txpower_offset)(nl80211_state_t *s, const char *, int *);
-  int (*bitrate)(nl80211_state_t *s, const char *, int *);
-  int (*signal)(nl80211_state_t *s, const char *, int *);
-  int (*noise)(nl80211_state_t *s, const char *, int *);
-  int (*quality)(nl80211_state_t *s, const char *, int *);
-  int (*quality_max)(nl80211_state_t *s, const char *, int *);
-  int (*mbssid_support)(nl80211_state_t *s, const char *, int *);
-  int (*hwmodelist)(nl80211_state_t *s, const char *, int *);
-  int (*htmodelist)(nl80211_state_t *s, const char *, int *);
-  int (*htmode)(nl80211_state_t *s, const char *, int *);
-  int (*ssid)(nl80211_state_t *s, const char *, char *);
-  int (*bssid)(nl80211_state_t *s, const char *, char *);
-  int (*country)(nl80211_state_t *s, const char *, char *);
-  int (*hardware_id)(nl80211_state_t *s, const char *, char *);
-  int (*hardware_name)(nl80211_state_t *s, const char *, char *);
-  int (*encryption)(nl80211_state_t *s, const char *, char *);
-  int (*phyname)(nl80211_state_t *s, const char *, char *);
-  int (*assoclist)(nl80211_state_t *s, const char *, char *, int *);
-  int (*txpwrlist)(nl80211_state_t *s, const char *, char *, int *);
-  int (*scanlist)(nl80211_state_t *s, const char *, char *, int *);
-  int (*freqlist)(nl80211_state_t *s, const char *, char *, int *);
-  int (*countrylist)(nl80211_state_t *s, const char *, char *, int *);
-  int (*survey)(nl80211_state_t *s, const char *, char *, int *);
-  int (*lookup_phy)(nl80211_state_t *s, const char *, char *);
-  int (*phy_path)(nl80211_state_t *s, const char *phyname, const char **path);
-  void (*close)(nl80211_state_t *s);
+  int (*probe)(iwinfo_t *iw, const char *ifname);
+  int (*mode)(iwinfo_t *iw, const char *, int *);
+  int (*channel)(iwinfo_t *iw, const char *, int *);
+  int (*center_chan1)(iwinfo_t *iw, const char *, int *);
+  int (*center_chan2)(iwinfo_t *iw, const char *, int *);
+  int (*frequency)(iwinfo_t *iw, const char *, int *);
+  int (*frequency_offset)(iwinfo_t *iw, const char *, int *);
+  int (*txpower)(iwinfo_t *iw, const char *, int *);
+  int (*txpower_offset)(iwinfo_t *iw, const char *, int *);
+  int (*bitrate)(iwinfo_t *iw, const char *, int *);
+  int (*signal)(iwinfo_t *iw, const char *, int *);
+  int (*noise)(iwinfo_t *iw, const char *, int *);
+  int (*quality)(iwinfo_t *iw, const char *, int *);
+  int (*quality_max)(iwinfo_t *iw, const char *, int *);
+  int (*mbssid_support)(iwinfo_t *iw, const char *, int *);
+  int (*hwmodelist)(iwinfo_t *iw, const char *, int *);
+  int (*htmodelist)(iwinfo_t *iw, const char *, int *);
+  int (*htmode)(iwinfo_t *iw, const char *, int *);
+  int (*ssid)(iwinfo_t *iw, const char *, char *);
+  int (*bssid)(iwinfo_t *iw, const char *, char *);
+  int (*country)(iwinfo_t *iw, const char *, char *);
+  int (*hardware_id)(iwinfo_t *iw, const char *, char *);
+  int (*hardware_name)(iwinfo_t *iw, const char *, char *);
+  int (*encryption)(iwinfo_t *iw, const char *, char *);
+  int (*phyname)(iwinfo_t *iw, const char *, char *);
+  int (*assoclist)(iwinfo_t *iw, const char *, char *, int *);
+  int (*txpwrlist)(iwinfo_t *iw, const char *, char *, int *);
+  int (*scanlist)(iwinfo_t *iw, const char *, char *, int *);
+  int (*freqlist)(iwinfo_t *iw, const char *, char *, int *);
+  int (*countrylist)(iwinfo_t *iw, const char *, char *, int *);
+  int (*survey)(iwinfo_t *iw, const char *, char *, int *);
+  int (*lookup_phy)(iwinfo_t *iw, const char *, char *);
+  int (*phy_path)(iwinfo_t *iw, const char *phyname, const char **path);
+  void (*close)(nl80211_state_t *state);
+} iwinfo_ops_t;
+
+struct iwinfo {
+  nl80211_state_t state;
+  const iwinfo_ops_t *iw;
 };
 
 const char *iwinfo_type();
-const struct iwinfo_ops *iwinfo_backend();
-const struct iwinfo_ops *iwinfo_backend_by_name();
-void iwinfo_deinit(nl80211_state_t *s);
+iwinfo_t *iwinfo_init();
+void iwinfo_deinit(iwinfo_t *container);
 
 extern const struct iwinfo_ops wext_ops;
 extern const struct iwinfo_ops madwifi_ops;

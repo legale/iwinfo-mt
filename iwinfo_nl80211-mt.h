@@ -33,18 +33,6 @@
 
 #include "api/nl80211.h"
 
-struct nl80211_msg_conveyor {
-  struct nl_msg *msg;
-  struct nl_cb *cb;
-};
-
-typedef struct nl80211_state {
-  struct nl_sock *nl_sock;
-  struct nl_cache *nl_cache;
-  struct genl_family *nl80211;
-  struct genl_family *nlctrl;
-  struct nl80211_msg_conveyor cv;
-} nl80211_state_t;
 
 struct nl80211_event_conveyor {
   uint32_t wait[(NL80211_CMD_MAX / 32) + !!(NL80211_CMD_MAX % 32)];

@@ -242,6 +242,7 @@ void iwinfo_close(void) {
 }
 
 struct iwinfo_hardware_entry *iwinfo_hardware(struct iwinfo_hardware_id *id) {
+  // printf("%s\n", __func__);
   FILE *db;
   char buf[256] = {0};
   static struct iwinfo_hardware_entry e;
