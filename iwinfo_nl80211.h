@@ -54,7 +54,6 @@ struct nl80211_rssi_rate {
 struct nl80211_array_buf {
   void *buf;
   int count;
-  int max_count;  // добавляем максимальный размер
 };
 
 nl80211_state_t *nl80211_init();
