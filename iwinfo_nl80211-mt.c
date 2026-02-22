@@ -1564,7 +1564,7 @@ static int nl80211_get_noise_cb(struct nl_msg *msg, void *arg) {
     return NL_SKIP;
 
   if (!*noise || si[NL80211_SURVEY_INFO_IN_USE])
-    *noise = (int8_t)nla_get_u8_safe(si[NL80211_SURVEY_INFO_NOISE]);
+    *noise = nla_get_u8_safe(si[NL80211_SURVEY_INFO_NOISE]);
 
   return NL_SKIP;
 }

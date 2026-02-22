@@ -223,7 +223,7 @@ struct iwinfo_assoclist_entry {
   uint8_t mac[6];
   int8_t signal;
   int8_t signal_avg;
-  int8_t noise;
+  uint8_t noise;
   uint32_t inactive;
   uint32_t connected_time;
   uint32_t rx_packets;
@@ -261,7 +261,7 @@ struct iwinfo_survey_entry {
   uint64_t rxtime;
   uint64_t txtime;
   uint32_t mhz;
-  int8_t noise;
+  uint8_t noise;
 };
 
 struct iwinfo_airtime_entry {
@@ -272,7 +272,7 @@ struct iwinfo_airtime_entry {
   uint8_t busy_ext;
   uint8_t interference;
   uint8_t interference_ext;
-  int8_t noise;
+  uint8_t noise;
 
   /* AP */
   uint8_t tx_ap;
