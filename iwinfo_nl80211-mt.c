@@ -1436,6 +1436,60 @@ static int nl80211_get_txpower(iwinfo_t *iw, const char *ifname, int *buf) {
   return 0;
 }
 
+struct nl80211_retry_buf {
+  int retry_short;
+  int retry_long;
+};
+
+static int nl80211_get_retry_cb(struct nl_msg *msg, void *arg) {
+  struct nl80211_retry_buf *rb = arg;
+  struct nlattr **tb = nl80211_parse(msg);
+
+  if (tb[NL80211_ATTR_WIPHY_RETRY_SHORT])
+    rb->retry_short = (int)nla_get_u8_safe(tb[NL80211_ATTR_WIPHY_RETRY_SHORT]);
+  else
+    rb->retry_short = -1;
+
+  if (tb[NL80211_ATTR_WIPHY_RETRY_LONG])
+    rb->retry_long = (int)nla_get_u8_safe(tb[NL80211_ATTR_WIPHY_RETRY_LONG]);
+  else
+    rb->retry_long = -1;
+
+  return NL_SKIP;
+}
+
+static int nl80211_get_retry_short(iwinfo_t *iw, const char *ifname, int *buf) {
+  char *res;
+  char resbuf[IFNAMSIZ];
+  struct nl80211_retry_buf rb = {-1, -1};
+
+  resbuf[0] = '\0';
+  res = nl80211_phy2ifname(iw, resbuf, ifname);
+
+  if (nl80211_request(iw, res ? res : ifname, NL80211_CMD_GET_WIPHY, 0,
+                      nl80211_get_retry_cb, &rb))
+    return -1;
+
+  *buf = rb.retry_short;
+  return 0;
+}
+
+static int nl80211_get_retry_long(iwinfo_t *iw, const char *ifname, int *buf) {
+  char *res;
+  char resbuf[IFNAMSIZ];
+  struct nl80211_retry_buf rb = {-1, -1};
+
+  resbuf[0] = '\0';
+  res = nl80211_phy2ifname(iw, resbuf, ifname);
+
+  if (nl80211_request(iw, res ? res : ifname, NL80211_CMD_GET_WIPHY, 0,
+                      nl80211_get_retry_cb, &rb))
+    return -1;
+
+  *buf = rb.retry_long;
+  return 0;
+}
+
 static int nl80211_fill_signal_cb(struct nl_msg *msg, void *arg) {
   int8_t dbm;
   int16_t mbit;
@@ -4005,4 +4059,6 @@ const struct iwinfo_ops nl80211_ops = {
     .lookup_phy = nl80211_lookup_phyname,
     .phy_path = nl80211_phy_path,
     .phy_to_ifnames = nl80211_phy2ifnames,
-    .close = nl80211_close};
+    .close = nl80211_close,
+    .retry_short = nl80211_get_retry_short,
+    .retry_long = nl80211_get_retry_long};

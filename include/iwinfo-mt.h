@@ -451,6 +451,9 @@ typedef struct iwinfo_ops {
   int (*airtime_station)(iwinfo_t *iw, const char *ifname, const uint8_t *mac,
                          char *buf, int *len);
   void (*close)(nl80211_state_t *state);
+  /* optional, at end for ABI compat with older lib */
+  int (*retry_short)(iwinfo_t *iw, const char *ifname, int *buf);
+  int (*retry_long)(iwinfo_t *iw, const char *ifname, int *buf);
 } iwinfo_ops_t;
 
 struct iwinfo {
