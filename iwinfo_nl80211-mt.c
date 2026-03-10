@@ -701,51 +701,45 @@ static int nl80211_phy2ifnames(iwinfo_t *iw, const char *phy,
 }
 
 static char *nl80211_phy2ifname(iwinfo_t *iw, char *ifname, const char *phy) {
-  if (iw == NULL)
-    return NULL;
-  int ifidx = -1, cifidx, lmode = 1, clmode, phyidx;
-  char buffer[512];
+  int ifidx = -1;
+  int cifidx;
+  int phyidx;
+  char buffer[128];
   DIR *d;
   struct dirent *e;
 
-  // clear ifname first byte
-  ifname[0] = '\0';
+  if (!iw || !ifname || !phy) return NULL;
 
-  /* Only accept phy name in the form of phy%d or radio%d */
-  if (!phy)
-    return NULL;
+  ifname[0] = '\0';
 
   phyidx = nl80211_phy_idx_from_phy(phy);
   if (phyidx < 0)
     return NULL;
 
-  if ((d = opendir("/sys/class/net")) != NULL) {
-    while ((e = readdir(d)) != NULL) {
-      snprintf(buffer, sizeof(buffer), "/sys/class/net/%s/phy80211/index",
-               e->d_name);
-      if (nl80211_readint(buffer) != phyidx)
-        continue;
+  d = opendir("/sys/class/net");
+  if (!d) return NULL;
 
-      snprintf(buffer, sizeof(buffer), "/sys/class/net/%s/ifindex", e->d_name);
-      cifidx = nl80211_readint(buffer);
+  while ((e = readdir(d)) != NULL) {
 
-      if (cifidx < 0)
-        continue;
+    snprintf(buffer, sizeof(buffer),
+             "/sys/class/net/%s/phy80211/index", e->d_name);
 
-      snprintf(buffer, sizeof(buffer), "/sys/class/net/%s/link_mode",
-               e->d_name);
-      clmode = nl80211_readint(buffer);
+    if (nl80211_readint(buffer) != phyidx) continue;
 
-      /* prefer non-supplicant-based devices */
-      if ((ifidx < 0) || (cifidx < ifidx) || ((lmode == 1) && (clmode != 1))) {
-        ifidx = cifidx;
-        lmode = clmode;
-        strncpy(ifname, e->d_name, IFNAMSIZ - 1);
-      }
+    snprintf(buffer, sizeof(buffer), "/sys/class/net/%s/ifindex", e->d_name);
+
+    cifidx = nl80211_readint(buffer);
+    if (cifidx < 0) continue;
+
+    if ((ifidx < 0) || (cifidx < ifidx)) {
+      ifidx = cifidx;
+
+      strncpy(ifname, e->d_name, IFNAMSIZ - 1);
+      ifname[IFNAMSIZ - 1] = '\0';
     }
-
-    closedir(d);
   }
+
+  closedir(d);
 
   return ifname[0] ? ifname : NULL;
 }
@@ -773,9 +767,7 @@ static int nl80211_get_mode_cb(struct nl_msg *msg, void *arg) {
 }
 
 static int nl80211_get_mode(iwinfo_t *iw, const char *ifname, int *buf) {
-
   *buf = IWINFO_OPMODE_UNKNOWN;
-
   nl80211_request(iw, ifname, NL80211_CMD_GET_INTERFACE, 0, nl80211_get_mode_cb,
                   buf);
 
@@ -789,23 +781,28 @@ static int __nl80211_hostapd_query(iwinfo_t *iw, const char *ifname, ...) {
   phybuf[0] = '\0';
   int len, mode, found = 0, match = 1;
   FILE *fp;
+  char confpath[128];
 
-  if (nl80211_get_mode(iw, ifname, &mode))
+  if (nl80211_get_mode(iw, ifname, &mode)) {
     return 0;
+  }
 
-  if (mode != IWINFO_OPMODE_MASTER && mode != IWINFO_OPMODE_AP_VLAN)
+  if (mode != IWINFO_OPMODE_MASTER && mode != IWINFO_OPMODE_AP_VLAN) {
     return 0;
+  }
 
   phy = nl80211_ifname2phy(iw, phybuf, ifname);
 
-  if (!phy)
+  if (!phy) {
     return 0;
+  }
 
-  snprintf(buf, sizeof(buf), "/var/run/hostapd-%s.conf", phy);
-  fp = fopen(buf, "r");
+  snprintf(confpath, sizeof(confpath), "/var/run/hostapd-%s.conf", phy);
+  fp = fopen(confpath, "r");
 
-  if (!fp)
+  if (!fp) {
     return 0;
+  }
 
   va_start(ap, ifname);
 
@@ -1104,6 +1101,9 @@ struct nl80211_ssid_bssid {
 static int nl80211_get_macaddr_cb(struct nl_msg *msg, void *arg) {
   struct nl80211_ssid_bssid *sb = arg;
   struct nlattr **tb = nl80211_parse(msg);
+  size_t ssid_len;
+  size_t mesh_len;
+  size_t copy_len;
 
   if (tb[NL80211_ATTR_MAC]) {
     sb->bssid[0] = 1;
@@ -1111,9 +1111,18 @@ static int nl80211_get_macaddr_cb(struct nl_msg *msg, void *arg) {
            sizeof(sb->bssid) - 1);
   }
 
+  if (sb->ssid && tb[NL80211_ATTR_SSID]) {
+    ssid_len = nla_len(tb[NL80211_ATTR_SSID]);
+    copy_len = min(ssid_len, IWINFO_ESSID_MAX_SIZE);
+    memcpy(sb->ssid, nla_data(tb[NL80211_ATTR_SSID]), copy_len);
+    sb->ssid[copy_len] = '\0';
+  }
+
   if (sb->ssid && tb[NL80211_ATTR_MESH_ID]) {
-    memcpy(sb->ssid, nla_data(tb[NL80211_ATTR_MESH_ID]),
-           min(nla_len(tb[NL80211_ATTR_MESH_ID]), IWINFO_ESSID_MAX_SIZE));
+    mesh_len = nla_len(tb[NL80211_ATTR_MESH_ID]);
+    copy_len = min(mesh_len, IWINFO_ESSID_MAX_SIZE);
+    memcpy(sb->ssid, nla_data(tb[NL80211_ATTR_MESH_ID]), copy_len);
+    sb->ssid[copy_len] = '\0';
   }
 
   return NL_SKIP;
@@ -1184,48 +1193,23 @@ static char *get_parent_ifname(const char *ifname) {
 }
 
 static int nl80211_get_ssid(iwinfo_t *iw, const char *ifname, char *buf) {
-  char *res;
-  char resbuf[IFNAMSIZ];
-  resbuf[0] = '\0';
+  int req_ret;
   struct nl80211_ssid_bssid sb = {.ssid = (unsigned char *)buf};
 
-  /* try to find ssid from scan dump results */
-  res = nl80211_phy2ifname(iw, resbuf, ifname);
   sb.ssid[0] = 0;
 
-  nl80211_request(iw, res ? res : ifname, NL80211_CMD_GET_SCAN, NLM_F_DUMP,
-                  nl80211_get_ssid_bssid_cb, &sb);
+  if (sb.ssid[0] == 0)
+    req_ret = nl80211_request(iw, ifname, NL80211_CMD_GET_INTERFACE, 0,
+                              nl80211_get_macaddr_cb, &sb);
 
-  /* If SSID not found and interface name contains .<vlan_id>, try parent
-   * interface */
   if (sb.ssid[0] == 0) {
     char *parent_if = get_parent_ifname(ifname);
-    if (parent_if) {
-      nl80211_request(iw, parent_if, NL80211_CMD_GET_SCAN, NLM_F_DUMP,
-                      nl80211_get_ssid_bssid_cb, &sb);
-    }
+    if (parent_if)
+      req_ret = nl80211_request(iw, parent_if, NL80211_CMD_GET_INTERFACE, 0,
+                                nl80211_get_macaddr_cb, &sb);
   }
 
-  /* failed, try to find from hostapd info */
-  if (sb.ssid[0] == 0) {
-    nl80211_hostapd_query(iw, ifname, "ssid", sb.ssid,
-                          IWINFO_ESSID_MAX_SIZE + 1);
-
-    /* If still no SSID and we have VLAN, try parent interface with hostapd */
-    if (sb.ssid[0] == 0) {
-      char *parent_if = get_parent_ifname(ifname);
-      if (parent_if) {
-        nl80211_hostapd_query(iw, parent_if, "ssid", sb.ssid,
-                              IWINFO_ESSID_MAX_SIZE + 1);
-      }
-    }
-  }
-
-  /* failed, try to obtain Mesh ID from interface info */
-  if (sb.ssid[0] == 0)
-    nl80211_request(iw, res ? res : ifname, NL80211_CMD_GET_INTERFACE, 0,
-                    nl80211_get_macaddr_cb, &sb);
-
+  (void)req_ret;
   return (sb.ssid[0] == 0) ? -1 : 0;
 }
 
