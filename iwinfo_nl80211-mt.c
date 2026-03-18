@@ -1582,7 +1582,7 @@ static int nl80211_get_signal(iwinfo_t *iw, const char *ifname, int *buf) {
 }
 
 static int nl80211_get_noise_cb(struct nl_msg *msg, void *arg) {
-  int8_t *noise = arg;
+  int32_t *noise = arg;
   struct nlattr **tb = nl80211_parse(msg);
   struct nlattr *si[NL80211_SURVEY_INFO_MAX + 1];
 
@@ -1602,13 +1602,13 @@ static int nl80211_get_noise_cb(struct nl_msg *msg, void *arg) {
     return NL_SKIP;
 
   if (!*noise || si[NL80211_SURVEY_INFO_IN_USE])
-    *noise = nla_get_u8_safe(si[NL80211_SURVEY_INFO_NOISE]);
+    *noise = (int32_t)(int8_t)nla_get_u8_safe(si[NL80211_SURVEY_INFO_NOISE]);
 
   return NL_SKIP;
 }
 
 static int nl80211_get_noise(iwinfo_t *iw, const char *ifname, int *buf) {
-  int8_t noise = 0;
+  int32_t noise = 0;
 
   if (nl80211_request(iw, ifname, NL80211_CMD_GET_SURVEY, NLM_F_DUMP,
                       nl80211_get_noise_cb, &noise))
@@ -2043,7 +2043,7 @@ static int nl80211_get_survey_cb(struct nl_msg *msg, void *arg) {
   // NLA_DBG("NL80211_SURVEY_INFO_FREQUENCY ");
 
   if (sinfo[NL80211_SURVEY_INFO_NOISE])
-    e->noise = (int8_t)nla_get_u8_safe(sinfo[NL80211_SURVEY_INFO_NOISE]);
+    e->noise = (int32_t)(int8_t)nla_get_u8_safe(sinfo[NL80211_SURVEY_INFO_NOISE]);
   // NLA_DBG("NL80211_SURVEY_INFO_NOISE ");
 
   if (sinfo[NL80211_SURVEY_INFO_TIME])
@@ -2176,10 +2176,11 @@ static int nl80211_get_assoclist_cb(struct nl_msg *msg, void *arg) {
       !nla_parse_nested(sinfo, NL80211_STA_INFO_MAX,
                         attr[NL80211_ATTR_STA_INFO], stats_policy)) {
     if (sinfo[NL80211_STA_INFO_SIGNAL])
-      e->signal = nla_get_u8_safe(sinfo[NL80211_STA_INFO_SIGNAL]);
+      e->signal = (int32_t)(int8_t)nla_get_u8_safe(sinfo[NL80211_STA_INFO_SIGNAL]);
 
     if (sinfo[NL80211_STA_INFO_SIGNAL_AVG])
-      e->signal_avg = nla_get_u8_safe(sinfo[NL80211_STA_INFO_SIGNAL_AVG]);
+      e->signal_avg =
+          (int32_t)(int8_t)nla_get_u8_safe(sinfo[NL80211_STA_INFO_SIGNAL_AVG]);
 
     if (sinfo[NL80211_STA_INFO_INACTIVE_TIME])
       e->inactive = nla_get_u32_safe(sinfo[NL80211_STA_INFO_INACTIVE_TIME]);
@@ -2587,10 +2588,9 @@ static int nl80211_get_scanlist_cb(struct nl_msg *msg, void *arg) {
     nl80211_get_scanlist_ie(bss, sl->e);
 
   if (bss[NL80211_BSS_SIGNAL_MBM]) {
-    sl->e->signal =
-        (uint8_t)((int32_t)nla_get_u32_safe(bss[NL80211_BSS_SIGNAL_MBM]) / 100);
+    sl->e->signal = (int32_t)nla_get_u32_safe(bss[NL80211_BSS_SIGNAL_MBM]) / 100;
 
-    rssi = sl->e->signal - 0x100;
+    rssi = sl->e->signal;
 
     if (rssi < -110)
       rssi = -110;

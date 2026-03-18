@@ -592,7 +592,7 @@ static void print_scanlist(iwinfo_t *iw, const char *ifname) {
            IWINFO_OPMODE_NAMES[e->mode], format_frequency(e->mhz),
            format_band(e->band), format_channel(e->channel));
     printf("          Signal: %s  Quality: %s/%s\n",
-           format_signal(e->signal - 0x100), format_quality(e->quality),
+           format_signal(e->signal), format_quality(e->quality),
            format_quality_max(e->quality_max));
     printf("          Encryption: %s\n", format_encryption(&e->crypto));
     printf("          HT Operation:\n");
@@ -652,7 +652,7 @@ static void print_scan2(iwinfo_t *iw, const char *ifname, int duration,
            IWINFO_OPMODE_NAMES[e->mode], format_frequency(e->mhz),
            format_band(e->band), format_channel(e->channel));
     printf("          Signal: %s  Quality: %s/%s\n",
-           format_signal(e->signal - 0x100), format_quality(e->quality),
+           format_signal(e->signal), format_quality(e->quality),
            format_quality_max(e->quality_max));
     printf("          Encryption: %s\n", format_encryption(&e->crypto));
     printf("          HT Operation:\n");

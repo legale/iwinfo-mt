@@ -463,7 +463,7 @@ static int iwinfo_L_scanlist(lua_State *L, int (*func)(const char *, char *, int
 			lua_pushinteger(L, e->quality_max);
 			lua_setfield(L, -2, "quality_max");
 
-			lua_pushnumber(L, (e->signal - 0x100));
+			lua_pushnumber(L, e->signal);
 			lua_setfield(L, -2, "signal");
 
 			/* Crypto */

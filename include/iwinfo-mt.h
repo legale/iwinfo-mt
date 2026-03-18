@@ -221,9 +221,9 @@ struct iwinfo_rate_entry {
 
 struct iwinfo_assoclist_entry {
   uint8_t mac[6];
-  int8_t signal;
-  int8_t signal_avg;
-  uint8_t noise;
+  int32_t signal;
+  int32_t signal_avg;
+  int32_t noise;
   uint32_t inactive;
   uint32_t connected_time;
   uint32_t rx_packets;
@@ -261,7 +261,7 @@ struct iwinfo_survey_entry {
   uint64_t rxtime;
   uint64_t txtime;
   uint32_t mhz;
-  uint8_t noise;
+  int32_t noise;
 };
 
 struct iwinfo_airtime_entry {
@@ -272,7 +272,7 @@ struct iwinfo_airtime_entry {
   uint8_t busy_ext;
   uint8_t interference;
   uint8_t interference_ext;
-  uint8_t noise;
+  int32_t noise;
 
   /* AP */
   uint8_t tx_ap;
@@ -291,7 +291,7 @@ struct iwinfo_airtime_entry {
   uint8_t other_ext_sta;
 
   /* Info */
-  int8_t signal;
+  int32_t signal;
   struct iwinfo_rate_entry rx_rate;
   struct iwinfo_rate_entry tx_rate;
 };
@@ -347,7 +347,7 @@ struct iwinfo_scanlist_entry {
   uint8_t band;
   uint8_t channel;
   uint32_t mhz;
-  uint8_t signal;
+  int32_t signal;
   uint8_t quality;
   uint8_t quality_max;
   struct iwinfo_crypto_entry crypto;
