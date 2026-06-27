@@ -3035,6 +3035,8 @@ static int nl80211_get_freqlist_cb(struct nl_msg *msg, void *arg) {
           if (!freqs[NL80211_FREQUENCY_ATTR_FREQ] ||
               freqs[NL80211_FREQUENCY_ATTR_DISABLED])
             continue;
+					
+					memset(e, 0, sizeof(*e));
 
           e->band = nl80211_get_band(band->nla_type);
           e->mhz = nla_get_u32_safe(freqs[NL80211_FREQUENCY_ATTR_FREQ]);
